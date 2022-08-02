@@ -159,6 +159,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('JWT',),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+AUTH_USER_MODEL = "api.User"
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 GRAPH_MODELS = {
     'all_applications': True,
