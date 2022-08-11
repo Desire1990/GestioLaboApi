@@ -18,13 +18,7 @@ router.register("order",OrderViewset)
 router.register("orderItem",OrderItemViewset)
 router.register("delivery",DeliveryViewset)
 router.register("commande",CommandeViewset)
-router.register("ligneCommande",LigneCommandeViewset)
-router.register("bonlivraison",BonLivraisonViewset)
-router.register("lignebonlivraison",LigneBonLivraisonViewset)
-router.register("approvision",ApprovisionnementViewset)
-router.register("ligneapprovision",LigneApprovisionnementViewset)
-router.register("bonreception",BonDeReceptionViewset)
-router.register("lignebonreception",LigneBonDeReceptionViewset)
+router.register("commandeItem",CommandeItemViewset)
 
 
 app_name='api'

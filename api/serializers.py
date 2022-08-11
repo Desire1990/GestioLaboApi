@@ -157,7 +157,7 @@ class DomainSerializer(serializers.HyperlinkedModelSerializer):
 	url = serializers.HyperlinkedIdentityField(view_name="api:domain-detail")
 	class Meta:
 		model = Domain
-		fields = ('id', 'url', 'name', 'slug', 'date_added')
+		fields = ('id', 'url', 'name', 'date_added')
 
 class CategorySerializer(serializers.ModelSerializer):
 	class Meta:
@@ -212,64 +212,28 @@ class ChangePasswordSerializer(serializers.Serializer):
 	new_password = serializers.CharField(required=True)
 
 
-class ApprovisionnementSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = Approvisionnement
-		fields = "__all__"
-
-
-class ApprovisionnementSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = Approvisionnement
-		fields = "__all__"
-
-
-class ApprovisionnementSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = Approvisionnement
-		fields = "__all__"
-
-
-class LigneApprovisionnementSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = LigneApprovisionnement
-		fields = "__all__"
-
-
-class ApprovisionnementSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = Approvisionnement
-		fields = "__all__"
-
-
-class BonDeReceptionSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = BonDeReception
-		fields = "__all__"
-
-
-class LigneBonDeReceptionSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = LigneBonDeReception
-		fields = "__all__"
+class CommandeItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommandeItem
+        fields = (
+        		'commande',
+        		'produit',
+        		'qte_commande'
+        	)
 
 class CommandeSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = Commande
-		fields = "__all__"
+    items = CommandeItemSerializer(many=True)
+    class Meta:
+        model = Commande
+        fields = '__all__'
 
-class LigneCommandeSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = LigneCommande
-		fields = "__all__"
+    def create(self, validated_data):
+        """ override create method """
+        items_data = validated_data.pop('items') # remove items from validated_data
+        # order create 
+        order = CommandeItem.objects.create(**validated_data)
 
-class BonLivraisonSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = BonLivraison
-		fields = "__all__"
-
-class LigneBonLivraisonSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = LigneBonLivraison
-		fields = "__all__"
-
+        # order_item save 
+        for item_data in items_data:
+            CommandeItem.objects.create(order=order, **item_data)
+        return order

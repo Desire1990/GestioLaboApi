@@ -59,7 +59,7 @@ class DecanatViewset(viewsets.ModelViewSet):
 	permission_classes = IsAuthenticated,
 	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	search_fields = ['name']
-	filterset_fields = ['date', 'name']
+	filterset_fields = ['name']
 
 	def get_queryset(self):
 		queryset = Decanat.objects.all().order_by('name')
@@ -344,66 +344,14 @@ class CommandeViewset(viewsets.ModelViewSet):
 	serializer_class = CommandeSerializer
 	filter_backends = (filters.SearchFilter,)
 
-	search_fields = ('quantity',)
-class LigneCommandeViewset(viewsets.ModelViewSet):
+	search_fields = ('num_commande',)
+
+class CommandeItemViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated,]
-	queryset = LigneCommande.objects.all()
+	queryset = CommandeItem.objects.all()
 	pagination_class = Pagination
-	serializer_class = LigneCommandeSerializer
+	serializer_class = CommandeItemSerializer
 	filter_backends = (filters.SearchFilter,)
 
-	search_fields = ('quantity',)
-class BonLivraisonViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = BonLivraison.objects.all()
-	pagination_class = Pagination
-	serializer_class = BonLivraisonSerializer
-	filter_backends = (filters.SearchFilter,)
-
-	search_fields = ('quantity',)
-class LigneBonLivraisonViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = LigneBonLivraison.objects.all()
-	pagination_class = Pagination
-	serializer_class = LigneBonLivraisonSerializer
-	filter_backends = (filters.SearchFilter,)
-
-	search_fields = ('quantity',)
-class ApprovisionnementViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = Approvisionnement.objects.all()
-	pagination_class = Pagination
-	serializer_class = ApprovisionnementSerializer
-	filter_backends = (filters.SearchFilter,)
-
-	search_fields = ('quantity',)
-class LigneApprovisionnementViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = LigneApprovisionnement.objects.all()
-	pagination_class = Pagination
-	serializer_class = LigneApprovisionnementSerializer
-	filter_backends = (filters.SearchFilter,)
-
-	search_fields = ('quantity',)
-class BonDeReceptionViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = BonDeReception.objects.all()
-	pagination_class = Pagination
-	serializer_class = BonDeReceptionSerializer
-	filter_backends = (filters.SearchFilter,)
-
-	search_fields = ('quantity',)
-class LigneBonDeReceptionViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = LigneBonDeReception.objects.all()
-	pagination_class = Pagination
-	serializer_class = LigneBonDeReceptionSerializer
-	filter_backends = (filters.SearchFilter,)
-	search_fields = ('quantity',)
+	search_fields = ('qte_commande',)
