@@ -1,8 +1,5 @@
 from .dependency import *
 
-class TokenPairView(TokenObtainPairView):
-	serializer_class = TokenPairSerializer
-
 class Pagination(PageNumberPagination):
 	page_size = 15
 	def get_paginated_response(self, data):
@@ -15,35 +12,186 @@ class Pagination(PageNumberPagination):
 			('results', data)
 		]))
 
+class TokenPairView(TokenObtainPairView):
+	serializer_class = TokenPairSerializer
+
+
+class GroupViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+	authentication_classes = [JWTAuthentication, SessionAuthentication]
+	permission_classes = IsAuthenticated,
+	queryset = Group.objects.all()
+	serializer_class = GroupSerializer
+
+
 class UserViewSet(viewsets.ModelViewSet):
-	queryset = User.objects.all()
 	serializer_class = UserSerializer
-	pagination_class = Pagination
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,IsAdminUser ]
+	queryset = User.objects.all().order_by('-id')
+	authentication_classes = [JWTAuthentication, SessionAuthentication]
+	permission_classes = IsAuthenticated,
+	# modification mot de passe
+
+	@transaction.atomic()
+	def update(self, request, pk):
+		user = self.get_object()
+		print(user)
+		data = request.data
+		username = data.get('username')
+		first_name = data.get('first_name')
+		last_name = data.get('last_name')
+		nouv_password = data.get('nouv_password')
+		anc_password = data.get('anc_password')
+		if user.check_password(anc_password):
+			print("checked")
+			user.username = username
+			user.first_name = first_name
+			user.last_name = last_name
+			user.set_password(nouv_password)
+			user.save()
+			return Response({"status": "Utilisateur modifié avec success"}, 201)
+		return Response({"status": "Ancien mot de passe incorrect"}, 400)
+
+# Views for Admins
+
+class DecanatViewset(viewsets.ModelViewSet):
+	serializer_class = DecanatSerializer
+	queryset = Decanat.objects.all().order_by('name')
+	authentication_classes = [JWTAuthentication, SessionAuthentication]
+	permission_classes = IsAuthenticated,
+	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+	search_fields = ['name']
+	filterset_fields = ['date', 'name']
 
 	def get_queryset(self):
-		return User.objects.filter(email = self.request.user)
+		queryset = Decanat.objects.all().order_by('name')
+		du = self.request.query_params.get('du')
+		au = self.request.query_params.get('au')
 
-	# Add this code block
-	def get_permissions(self):
-		permission_classes = []
-		if self.action == 'create':
-			permission_classes = [AllowAny]
-		elif self.action == 'retrieve' or self.action == 'update' or self.action == 'partial_update':
-			permission_classes = [IsLoggedInUserOrAdmin]
-		elif self.action == 'list' :
-			permission_classes = [IsLoggedInUserOrAdmin]		
-		elif self.action == 'destroy':
-			permission_classes = [IsAdminUser]
-		return [permission() for permission in permission_classes]
+		if du is not None:
+			queryset = queryset.filter(date__gte=du, date__lte=au)
+		return queryset
+
+	@transaction.atomic()
+	def create(self, request):
+		data = request.data
+		name = data.get('name')
+		decanat: Decanat = Decanat(
+			user=request.user,
+			decanat=decanat
+		)
+		dpe.save()
+		serializer = DecanatSerializer(dpe, many=False).data
+		return Response({"status": "Decanat cree avec succès"}, 201)
 
 
-class RegisterView(generics.CreateAPIView):
-	queryset = User.objects.all()
-	permission_classes = (AllowAny,)
-	serializer_class = RegisterSerializer
-	
+class DepartementViewset(viewsets.ModelViewSet):
+	serializer_class = DepartementSerializer
+	queryset = Departement.objects.all().order_by('decanat__name', 'name')
+	authentication_classes = [JWTAuthentication, SessionAuthentication]
+	permission_classes = IsAuthenticated,
+	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+	filterset_fields = {
+		'decanat': ['exact'],
+	}
+	search_fields = ['name', 'decanat__name']
+
+	@transaction.atomic()
+	def create(self, request):
+		data = request.data
+		dec: Decanat = Decanat.objects.get(id=int(data.get('dec')))
+		name = data.get('name')
+		dep: Departement = Departement(
+			user=request.user,
+			dec=dec,
+			name=name
+		)
+		dep.save()
+		serializer = DCESerializer(dep, many=False).data
+		return Response({"status": "Departement cree avec succès"}, 201)
+
+
+class UtilisateurViewset(viewsets.ModelViewSet):
+	serializer_class = UtilisateurSerializer
+	queryset = Utilisateur.objects.all().order_by('-id')
+	#authentication_classes = [JWTAuthentication, SessionAuthentication]
+	#permission_classes = IsAuthenticated,
+	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+	search_fields = ['user__username', 'user__first_name',
+					 'user__last_name', 'departement__name', 'decanat__name']
+
+	@transaction.atomic()
+	def create(self, request):
+		serializer = self.get_serializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+		departement = serializer.validated_data['departement']
+		decanat = serializer.validated_data['decanat']
+		user = User(
+			username=serializer.validated_data['user']['username'],
+			first_name=serializer.validated_data['user']['first_name'],
+			last_name=serializer.validated_data['user']['last_name'],
+			email=serializer.validated_data['user']['email']
+		)
+		user.set_password(serializer.validated_data['user']['password'])
+		utilisateur = Utilisateur(
+			user=user,
+			decanat=decanat,
+			departement=departement,
+		)
+		user.save()
+		groups = serializer.validated_data['user']['groups']
+		print(serializer.validated_data['user'])
+		for group in groups:
+			user.groups.add(group)
+			user.save()
+		utilisateur.save()
+		serializer = UtilisateurSerializer(utilisateur, many=False).data
+		return Response({"status": "Utilisateur cree avec succès"}, 201)
+
+	@transaction.atomic()
+	@action(methods=['GET'], detail=False, url_path=r"reset/(?P<email>[a-zA-Z0-9.@]+)", url_name=r'reset')
+	def rest_password(self, request, email):
+		queryset = User.objects.filter(email=email)
+		if(not queryset):
+			return Response({"details": "email invalide"}, 400)
+
+		user: user = queryset.first()
+
+		# if (user.utilisateur.reset !=None):
+		# 	return Response({"details":"compte en pleine reinitialisation"},400)
+
+		utilisateur: Utilisateur = user.utilisateur
+		reset = randint(100000, 999999)
+		utilisateur.reset = reset
+		utilisateur.save()
+
+		send_mail(
+			subject=f"{reset} est votre code de réinitialisation de votre compte Approsco",
+			message=f"Nous avons reçu une demande de réinitialisation de votre mot de passe Approsco. \nEntrez le code de réinitialisation du mot de passe suivant: \n\n{reset}\n\nVous n'avez pas demandé ce changement?\nSi vous n'avez pas demandé de nouveau mot de passe, veuillez signaler votre Administrateur.",
+			from_email=None,
+			recipient_list=[email],
+			fail_silently=False,
+		)
+		return Response({'status': 'reussie'}, 200)
+
+	@transaction.atomic()
+	@action(methods=['POST'], detail=False, url_path=r"changePassword", url_name=r'changePassword', serializer_class=PasswordResetSerializer)
+	def changepassword(self, request):
+		reset_code = request.data['reset_code']
+		new_password = request.data['new_password']
+
+		utilisateurs = Utilisateur.objects.filter(reset=reset_code)
+		if utilisateurs:
+			utilisateur = utilisateurs.first()
+			user = utilisateur.user
+			user.set_password(new_password)
+			user.save()
+			utilisateur.reset = None
+			utilisateur.save()
+			return Response({"status": "succes"}, 200)
+		else:
+			return Response({"status": "echec"}, 401)
+
+
+
 
 class DomainViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -87,7 +235,6 @@ class ProductViewset(viewsets.ModelViewSet):
 		designation = (data.get('designation'))
 		quantite = (data.get('quantite'))
 		unite = (data.get('unite'))
-		status = (data.get('status'))
 		date_peremption = (data.get('date_peremption'))
 		product = Product(
 			category=category,
@@ -96,7 +243,6 @@ class ProductViewset(viewsets.ModelViewSet):
 			designation=designation,
 			quantite=quantite,
 			unite=unite,
-			status=status,
 			date_peremption=date_peremption,
 			)
 
@@ -104,6 +250,10 @@ class ProductViewset(viewsets.ModelViewSet):
 		serializer = ProductSerializer(product, many=False, context={"request":request}).data
 		return Response(serializer,200)
 
+	def update(self, request):
+		pass
+	def destroy():
+		pass
 
 class OrderViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -114,6 +264,7 @@ class OrderViewset(viewsets.ModelViewSet):
 	filter_backends = (filters.SearchFilter,)
 	search_fields = ('name',)
 
+
 class OrderItemViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated,]
@@ -121,7 +272,7 @@ class OrderItemViewset(viewsets.ModelViewSet):
 	pagination_class = Pagination
 	serializer_class = OrderItemSerializer
 	filter_backends = (filters.SearchFilter,)
-	search_fields = ('quantite',)
+	search_fields = ('quantity',)
 
 class DeliveryViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -131,6 +282,7 @@ class DeliveryViewset(viewsets.ModelViewSet):
 	serializer_class = DeliverySerializer
 	filter_backends = (filters.SearchFilter,)
 	# search_fields = ('name',)
+
 class ChangePasswordView(generics.UpdateAPIView):
 	"""
 	An endpoint for changing password.
@@ -176,9 +328,82 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
 		# message:
 		email_plaintext_message,
 		# from:
-		# "noreply@somehost.local",
-		'support@redgoldinvest.com',
+		"noreply@somehost.local",
+		# 'support@redgoldinvest.com',
 		# to:
 		[reset_password_token.user.email]
 	)
 
+
+
+class CommandeViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = Commande.objects.all()
+	pagination_class = Pagination
+	serializer_class = CommandeSerializer
+	filter_backends = (filters.SearchFilter,)
+
+	search_fields = ('quantity',)
+class LigneCommandeViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = LigneCommande.objects.all()
+	pagination_class = Pagination
+	serializer_class = LigneCommandeSerializer
+	filter_backends = (filters.SearchFilter,)
+
+	search_fields = ('quantity',)
+class BonLivraisonViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = BonLivraison.objects.all()
+	pagination_class = Pagination
+	serializer_class = BonLivraisonSerializer
+	filter_backends = (filters.SearchFilter,)
+
+	search_fields = ('quantity',)
+class LigneBonLivraisonViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = LigneBonLivraison.objects.all()
+	pagination_class = Pagination
+	serializer_class = LigneBonLivraisonSerializer
+	filter_backends = (filters.SearchFilter,)
+
+	search_fields = ('quantity',)
+class ApprovisionnementViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = Approvisionnement.objects.all()
+	pagination_class = Pagination
+	serializer_class = ApprovisionnementSerializer
+	filter_backends = (filters.SearchFilter,)
+
+	search_fields = ('quantity',)
+class LigneApprovisionnementViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = LigneApprovisionnement.objects.all()
+	pagination_class = Pagination
+	serializer_class = LigneApprovisionnementSerializer
+	filter_backends = (filters.SearchFilter,)
+
+	search_fields = ('quantity',)
+class BonDeReceptionViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = BonDeReception.objects.all()
+	pagination_class = Pagination
+	serializer_class = BonDeReceptionSerializer
+	filter_backends = (filters.SearchFilter,)
+
+	search_fields = ('quantity',)
+class LigneBonDeReceptionViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = LigneBonDeReception.objects.all()
+	pagination_class = Pagination
+	serializer_class = LigneBonDeReceptionSerializer
+	filter_backends = (filters.SearchFilter,)
+	search_fields = ('quantity',)
