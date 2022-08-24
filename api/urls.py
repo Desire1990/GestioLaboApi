@@ -16,9 +16,10 @@ router.register("category",CategoryViewset)
 router.register("product",ProductViewset)
 router.register("order",OrderViewset)
 router.register("orderItem",OrderItemViewset)
-router.register("delivery",DeliveryViewset)
 router.register("commande",CommandeViewset)
 router.register("commandeItem",CommandeItemViewset)
+router.register("bonLivraison",BonLivraisonViewset)
+router.register("lignebonLivraison",LigneBonLivraisonViewset)
 
 
 app_name='api'
