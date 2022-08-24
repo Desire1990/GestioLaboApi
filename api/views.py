@@ -214,9 +214,13 @@ class CategoryViewset(viewsets.ModelViewSet):
 	}
 	search_fields = ['name', 'domain__name']
 
-class ProductViewset(viewsets.ModelViewSet):
+class ProductViewset(mixins.ListModelMixin,
+					mixins.UpdateModelMixin,
+					mixins.RetrieveModelMixin,
+					mixins.CreateModelMixin,
+					viewsets.GenericViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
+	permission_classes = [IsAuthenticated]
 	queryset = Product.objects.all()
 	pagination_class = Pagination
 	serializer_class = ProductSerializer
@@ -227,34 +231,57 @@ class ProductViewset(viewsets.ModelViewSet):
 	search_fields = ['name', 'category__name']
 
 	@transaction.atomic
-	def create(self, request):
-		data = self.request.data
-		category: Category = Category.objects.get(id=(data.get('category')))
-		materiel = (data.get('materiel'))
-		reference = (data.get('reference'))
-		designation = (data.get('designation'))
-		quantite = (data.get('quantite'))
-		unite = (data.get('unite'))
-		date_peremption = (data.get('date_peremption'))
-		product = Product(
-			category=category,
-			materiel=materiel,
-			reference=reference,
-			designation=designation,
-			quantite=quantite,
-			unite=unite,
-			date_peremption=date_peremption,
-			)
+	def create(self, request, *args, **kwargs):
+		many = True if isinstance(request.data, list) else False
+		serializer = self.get_serializer(data=request.data, many=many)
+		serializer.is_valid(raise_exception=True)
+		self.perform_create(serializer)
+		headers = self.get_success_headers(serializer.data)
+		return Response(serializer.data, 201)
 
-		product.save()
-		serializer = ProductSerializer(product, many=False, context={"request":request}).data
-		return Response(serializer,200)
+class BonLivraisonViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = BonLivraison.objects.all()
+	pagination_class = Pagination
+	serializer_class = BonLivraisonSerializer
+	filter_backends = (filters.SearchFilter,)
+	filterset_fields = {
+		'produit': ['exact'],
+	}
+	search_fields = ['num_commande','produit__reference']
+class LigneBonLivraisonViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = LigneBonLivraison.objects.all()
+	pagination_class = Pagination
+	serializer_class = LigneBonLivraisonSerializer
+	filter_backends = (filters.SearchFilter,)
+	filterset_fields = {
+		'produit': ['exact'],
+	}
+	search_fields = ['num_commande','produit__reference']
+class CommandeViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = Commande.objects.all()
+	pagination_class = Pagination
+	serializer_class = CommandeSerializer
+	filter_backends = (filters.SearchFilter,)
+	filterset_fields = {
+		'produit': ['exact'],
+	}
+	search_fields = ['num_commande','produit__reference']
 
-	def update(self, request):
-		pass
-	def destroy():
-		pass
+class CommandeItemViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = CommandeItem.objects.all()
+	pagination_class = Pagination
+	serializer_class = CommandeItemSerializer
+	filter_backends = (filters.SearchFilter,)
 
+	search_fields = ('qte_commande',)
 class OrderViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated,]
@@ -274,14 +301,8 @@ class OrderItemViewset(viewsets.ModelViewSet):
 	filter_backends = (filters.SearchFilter,)
 	search_fields = ('quantity',)
 
-class DeliveryViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = Delivery.objects.all()
-	pagination_class = Pagination
-	serializer_class = DeliverySerializer
-	filter_backends = (filters.SearchFilter,)
-	# search_fields = ('name',)
+
+
 
 class ChangePasswordView(generics.UpdateAPIView):
 	"""
@@ -316,42 +337,3 @@ class ChangePasswordView(generics.UpdateAPIView):
 			return Response(response)
 
 		return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@receiver(reset_password_token_created)
-def password_reset_token_created(sender, instance, reset_password_token, *args, **kwargs):
-	email_plaintext_message = "Copy the token value in token field in your reset password page.\n Your token is ={}".format(reset_password_token.key)
-
-	send_mail(
-		# title:
-		"Password Reset for {title}".format(title="initializing the logins"),
-		# message:
-		email_plaintext_message,
-		# from:
-		"noreply@somehost.local",
-		# 'support@redgoldinvest.com',
-		# to:
-		[reset_password_token.user.email]
-	)
-
-
-
-class CommandeViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = Commande.objects.all()
-	pagination_class = Pagination
-	serializer_class = CommandeSerializer
-	filter_backends = (filters.SearchFilter,)
-
-	search_fields = ('num_commande',)
-
-class CommandeItemViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = CommandeItem.objects.all()
-	pagination_class = Pagination
-	serializer_class = CommandeItemSerializer
-	filter_backends = (filters.SearchFilter,)
-
-	search_fields = ('qte_commande',)
