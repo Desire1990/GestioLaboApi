@@ -1,0 +1,74 @@
+[
+{
+  "model": "api.domain",
+  "pk": 1,
+  "fields": {
+    "name": "Appareillage",
+    "date_added": "2022-08-18T12:35:01.322Z"
+  }
+},
+{
+  "model": "api.domain",
+  "pk": 2,
+  "fields": {
+    "name": "Classe de Terrain",
+    "date_added": "2022-08-18T12:35:04.792Z"
+  }
+},
+{
+  "model": "api.domain",
+  "pk": 3,
+  "fields": {
+    "name": "Science de la vie",
+    "date_added": "2022-08-18T12:35:08.335Z"
+  }
+},
+{
+  "model": "api.domain",
+  "pk": 4,
+  "fields": {
+    "name": "Science de la terre",
+    "date_added": "2022-08-18T12:35:08.335Z"
+  }
+},
+{
+  "model": "api.domain",
+  "pk": 5,
+  "fields": {
+    "name": "Vannerie  et associés",
+    "date_added": "2022-08-18T12:35:08.335Z"
+  }
+},
+{
+  "model": "api.domain",
+  "pk": 6,
+  "fields": {
+    "name": "Produits chimiques",
+    "date_added": "2022-08-18T12:35:08.335Z"
+  }
+},
+{
+  "model": "api.domain",
+  "pk": 7,
+  "fields": {
+    "name": "Materiel de laboratoire",
+    "date_added": "2022-08-18T12:35:08.335Z"
+  }
+},
+{
+  "model": "api.domain",
+  "pk": 8,
+  "fields": {
+    "name": "Médias",
+    "date_added": "2022-08-18T12:35:08.335Z"
+  }
+},
+{
+  "model": "api.domain",
+  "pk": 9,
+  "fields": {
+    "name": "Lames minces",
+    "date_added": "2022-08-18T12:35:08.335Z"
+  }
+}
+]
