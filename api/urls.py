@@ -9,6 +9,7 @@ router = routers.DefaultRouter()
 router.register("user",UserViewSet)
 router.register("utilisateur",UtilisateurViewset)
 router.register("groups",GroupViewSet)
+router.register("labo",LaboratoireViewSet)
 router.register("Departement",DepartementViewset)
 router.register("decanat",DecanatViewset)
 router.register("domain",DomainViewset)
@@ -19,7 +20,9 @@ router.register("orderItem",OrderItemViewset)
 router.register("commande",CommandeViewset)
 router.register("commandeItem",CommandeItemViewset)
 router.register("bonLivraison",BonLivraisonViewset)
-router.register("lignebonLivraison",LigneBonLivraisonViewset)
+router.register("bonLivraisonItems",BonLivraisonItemsViewset)
+router.register("orderbonLivraison",OrderBonLivraisonViewset)
+router.register("orderbonLivraisonItems",OrderBonLivraisonItemsViewset)
 
 
 app_name='api'

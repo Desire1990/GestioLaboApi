@@ -22,6 +22,12 @@ class GroupViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 	queryset = Group.objects.all()
 	serializer_class = GroupSerializer
 
+class LaboratoireViewSet(viewsets.ModelViewSet):
+	authentication_classes = [JWTAuthentication, SessionAuthentication]
+	permission_classes = IsAuthenticated,
+	queryset = Laboratoire.objects.all()
+	serializer_class = LaboratoireSerializer
+
 
 class UserViewSet(viewsets.ModelViewSet):
 	serializer_class = UserSerializer
@@ -212,7 +218,7 @@ class CategoryViewset(viewsets.ModelViewSet):
 	filterset_fields = {
 		'domain': ['exact'],
 	}
-	search_fields = ['name', 'domain__name']
+	search_fields = ['name', 'domain__id']
 
 class ProductViewset(mixins.ListModelMixin,
 					mixins.UpdateModelMixin,
@@ -250,12 +256,34 @@ class BonLivraisonViewset(viewsets.ModelViewSet):
 		'produit': ['exact'],
 	}
 	search_fields = ['num_commande','produit__reference']
-class LigneBonLivraisonViewset(viewsets.ModelViewSet):
+class BonLivraisonItemsViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated,]
-	queryset = LigneBonLivraison.objects.all()
+	queryset = BonLivraisonItems.objects.all()
 	pagination_class = Pagination
-	serializer_class = LigneBonLivraisonSerializer
+	serializer_class = BonLivraisonItemsSerializer
+	filter_backends = (filters.SearchFilter,)
+	filterset_fields = {
+		'produit': ['exact'],
+	}
+	search_fields = ['num_commande','produit__reference']
+class OrderBonLivraisonViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = OrderBonLivraison.objects.all()
+	pagination_class = Pagination
+	serializer_class = OrderBonLivraisonSerializer
+	filter_backends = (filters.SearchFilter,)
+	filterset_fields = {
+		'produit': ['exact'],
+	}
+	search_fields = ['num_commande','produit__reference']
+class OrderBonLivraisonItemsViewset(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = OrderBonLivraisonItems.objects.all()
+	pagination_class = Pagination
+	serializer_class = OrderBonLivraisonItemsSerializer
 	filter_backends = (filters.SearchFilter,)
 	filterset_fields = {
 		'produit': ['exact'],
