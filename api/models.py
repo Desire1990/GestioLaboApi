@@ -41,13 +41,12 @@ class LastLogin(models.Model):
 	id = models.SmallAutoField(primary_key=True)
 	date = models.DateTimeField(auto_now_add=True)
 
-# cas de stock des Products central
 class Laboratoire(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	name = models.CharField(max_length=200)
-	# utilisateur=models.ForeignKey('Utilisateur', on_delete=models.CASCADE)
 	date_added=models.DateTimeField(auto_now_add=True)
 
+# cas de stock des Products central
 class Domain(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	name=models.CharField(max_length=200)
@@ -135,6 +134,7 @@ class Product(models.Model):
 class Commande(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	user = models.ForeignKey('Utilisateur', on_delete=models.CASCADE)
+	laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
 	num_commande = models.CharField(max_length=50)
 	date_commande = models.DateTimeField(auto_now_add=True)
 	date_livraison = models.DateTimeField(auto_now_add=True)
@@ -151,47 +151,37 @@ class CommandeItem(models.Model):
 	produit = models.ForeignKey(Product, on_delete=models.CASCADE)
 	qte_commande = models.IntegerField(default=0)
 	
-	def save(self, *args, **kwargs):
-		super().save(*args, **kwargs)
-		produit = self.produit
-		produit.quantite -= self.qte_commande
-		produit.save()
-
 	
 	def __str__(self):
-		return str(self.commande)   
+		return str(self.commande)    
 
 class BonLivraison(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	num_bon_livraison = models.CharField(max_length=50, default='')
-	date_bon_livraison = models.DateField()
-	# labo = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
-	commande = models.ForeignKey(Commande, on_delete=models.CASCADE)
-	created_at = models.DateTimeField(auto_now_add=True)
-	updated_at = models.DateTimeField(auto_now=True)
-	
+	user = models.ForeignKey('Utilisateur', on_delete=models.CASCADE)
+	laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
+	num_commande = models.CharField(max_length=50)
+	date_commande = models.DateTimeField(auto_now_add=True)
+	date_livraison = models.DateTimeField(auto_now_add=True)
+	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')	
 	
 	def __str__(self):
-		return str(self.num_bon_livraison)
-	
-class LigneBonLivraison(models.Model):
+		return f'{self.num_commande}'
+
+
+
+class BonLivraisonItems(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	bon_livraison = models.ForeignKey(BonLivraison, related_name='ligne', on_delete=models.CASCADE)
+	commande = models.ForeignKey(CommandeItem,related_name='items', on_delete=models.CASCADE)
 	produit = models.ForeignKey(Product, on_delete=models.CASCADE)
 	qte_livree = models.IntegerField(default=0)
 	qte_restante = models.IntegerField(default=0)
-	created_at = models.DateTimeField(auto_now_add=True)
-	updated_at = models.DateTimeField(auto_now=True)
-	
 	
 	def __str__(self):
-		return str(self.bon_livraison)
+		return str(self.commande)  
 
-# cas des commandes externe de dri lies aux labo
 class Order(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	num_order = models.CharField(max_length=50)
-	user = models.ForeignKey('Utilisateur', related_name='orders', on_delete=models.CASCADE)
 	professeur = models.ForeignKey('Professeur', related_name='orders', on_delete=models.CASCADE)
 	description = models.TextField()
 	created_at = models.DateTimeField(auto_now_add=True)
@@ -200,24 +190,44 @@ class Order(models.Model):
 	def __str__(self):
 		return str(self.num_order)
 
-	
-	# def save(self, *args, **kwargs):
-	# 	super().save(*args, **kwargs)
-	# 	commande = self.commande
-	# 	commande.qte_commande -= self.quantity
-	# 	commande.save()
-
 class OrderItem(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 
 	order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
-	commande = models.ForeignKey(CommandeItem, related_name='items', on_delete=models.CASCADE)
+	commande = models.ForeignKey(BonLivraisonItems, related_name='items', on_delete=models.CASCADE)
 	product = models.ForeignKey(Product, related_name='items', on_delete=models.CASCADE)
 	quantity = models.IntegerField(default=1)
 
 	def __str__(self):
 		return f'{self.order} - {self.product} - {self.product}'
 
+
+class OrderBonLivraison(models.Model):
+	id=models.SmallAutoField(primary_key=True)
+	user = models.ForeignKey('Utilisateur', on_delete=models.CASCADE)
+	laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
+	num_commande = models.CharField(max_length=50)
+	date_commande = models.DateTimeField(auto_now_add=True)
+	date_livraison = models.DateTimeField(auto_now_add=True)
+	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')	
+	
+	def __str__(self):
+		return f'{self.num_commande}'
+
+
+
+class OrderBonLivraisonItems(models.Model):
+	id=models.SmallAutoField(primary_key=True)
+	commande = models.ForeignKey(OrderItem,related_name='items', on_delete=models.CASCADE)
+	produit = models.ForeignKey(Product, on_delete=models.CASCADE)
+	qte_livree = models.IntegerField(default=0)
+	qte_restante = models.IntegerField(default=0)
+	
+
+
+	
+	def __str__(self):
+		return (self.id) 
 
 # cas d'extrat pour identifier les beneficieres(laboratoires)
 class Decanat(models.Model):
@@ -253,11 +263,10 @@ class Utilisateur(models.Model):
 
 class Professeur(models.Model):
 	id = models.BigAutoField(primary_key=True)
-	name=models.CharField(max_length=50,null=True)
-	email=models.CharField(max_length=50)
-	contact=models.CharField(max_length=50)
+	user = models.OneToOneField(User, on_delete=models.PROTECT, null=True, blank=True)
+	departement = models.ForeignKey(Departement, related_name='Utilisateur_prof',on_delete=models.PROTECT, null=True, blank=True)
 	date_created=models.DateTimeField(auto_now=True)
 	# status=models.BooleanField()    
 	  
 	def __str__(self):
-		return self.name
+		return f"{self.user.username}"
