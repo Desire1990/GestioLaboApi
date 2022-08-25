@@ -170,20 +170,43 @@ class DomainSerializer(serializers.HyperlinkedModelSerializer):
 	category = CategorySerializer(many=True, read_only=True)
 	class Meta:
 		model = Domain
-		fields = "__all__"
-		# fields = ('id', 'url', 'name', 'date_added')
+		# fields = "__all__"
+		fields = ('id', 'url','category', 'name','get_thumbnail', 'date_added')
 
 
-class LigneBonLivraisonSerializer(serializers.ModelSerializer):
+class BonLivraisonItemsSerializer(serializers.ModelSerializer):
 	class Meta:
-		model = LigneBonLivraison
+		model = BonLivraisonItems
 		fields = "__all__"
 		# depth=3
 
 class BonLivraisonSerializer(serializers.ModelSerializer):
-	ligne = LigneBonLivraisonSerializer(many=True, read_only=True)
+	items = BonLivraisonItemsSerializer(many=True, read_only=True)
 	class Meta:
 		model = BonLivraison
+		fields = '__all__'
+		# depth=3
+	def create(self, validated_data):
+		""" override create method """
+		items_data = validated_data.pop('items') # remove items from validated_data
+		# order create 
+		order = BonLivraison.objects.create(**validated_data)
+
+		# order_item save 
+		for item_data in items_data:
+			BonLivraisonItem.objects.create(order=order, **item_data)
+		return order
+
+class OrderBonLivraisonItemsSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = OrderBonLivraisonItems
+		fields = "__all__"
+		# depth=3
+
+class OrderBonLivraisonSerializer(serializers.ModelSerializer):
+	items = BonLivraisonItemsSerializer(many=True, read_only=True)
+	class Meta:
+		model = OrderBonLivraison
 		fields = "__all__"
 		# depth=3
 class CommandeItemSerializer(serializers.ModelSerializer):
@@ -214,11 +237,17 @@ class CommandeSerializer(serializers.ModelSerializer):
 			CommandeItem.objects.create(order=order, **item_data)
 		return order
 
+class LaboratoireSerializer(serializers.ModelSerializer):
+
+	class Meta:
+		model = Laboratoire
+		fields = ('__all__')
 class OrderItemSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = OrderItem
 		fields = (
+			'commande',
 			'order',
 			'product',
 			'quantity',
