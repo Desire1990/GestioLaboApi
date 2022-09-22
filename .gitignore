@@ -1,7 +1,8 @@
-db.sqlite3
+db*.sqlite3
 **/__pycache__
 **/migrations
 image/*
 fixtures/*
 mcd_lab.png
 media/*
+*.png
