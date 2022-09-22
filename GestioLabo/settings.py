@@ -117,7 +117,7 @@ USE_L10N = True
 USE_TZ = True
 
 CORS_ALLOWED_ORIGINS = [
-    # "http://localhost:8080",
+    "http://localhost:8082",
     "http://localhost:8081",
 ]
 

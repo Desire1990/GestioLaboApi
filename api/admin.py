@@ -5,7 +5,7 @@ from .models import*
 admin.site.register(Domain)
 admin.site.register(Category)
 admin.site.register(Product)
-# admin.site.register(LastLogin)
+admin.site.register(Utilisateur)
 admin.site.register(Order)
 admin.site.register(OrderItem)
 admin.site.register(Decanat)
