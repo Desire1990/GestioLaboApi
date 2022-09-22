@@ -1,5 +1,6 @@
 from .dependency import *
 
+
 class Pagination(PageNumberPagination):
 	page_size = 15
 	def get_paginated_response(self, data):
@@ -29,32 +30,79 @@ class LaboratoireViewSet(viewsets.ModelViewSet):
 	serializer_class = LaboratoireSerializer
 
 
-class UserViewSet(viewsets.ModelViewSet):
-	serializer_class = UserSerializer
-	queryset = User.objects.all().order_by('-id')
-	authentication_classes = [JWTAuthentication, SessionAuthentication]
-	permission_classes = IsAuthenticated,
-	# modification mot de passe
 
-	@transaction.atomic()
-	def update(self, request, pk):
-		user = self.get_object()
-		print(user)
+class UserViewSet(viewsets.ModelViewSet):
+	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	permission_classes = [IsAuthenticated,]
+	queryset = User.objects.all()
+	serializer_class = UserSerializer
+
+	@transaction.atomic
+	def create(self, request, *args, **kwargs):
+		serializer = self.get_serializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
 		data = request.data
-		username = data.get('username')
-		first_name = data.get('first_name')
-		last_name = data.get('last_name')
-		nouv_password = data.get('nouv_password')
-		anc_password = data.get('anc_password')
-		if user.check_password(anc_password):
-			print("checked")
-			user.username = username
-			user.first_name = first_name
-			user.last_name = last_name
-			user.set_password(nouv_password)
-			user.save()
-			return Response({"status": "Utilisateur modifié avec success"}, 201)
-		return Response({"status": "Ancien mot de passe incorrect"}, 400)
+		user = User(
+			username = data.get("username"),
+			first_name = data.get("first_name"),
+			last_name = data.get("last_name"),
+		)
+		user.set_password("password")
+		user.save()
+		serializer = UserSerializer(user, many=False)
+		return Response(serializer.data, 201)
+
+	@transaction.atomic
+	def update(self, request, *args, **kwargs):
+		data = request.data
+		user = self.get_object()
+		if not request.user.is_superuser:
+			if(user.id != request.user.id):
+				return Response(
+					{'status': "permissions non accordée"}
+				, 400)
+
+		username = data.get("username")
+		if username:user.username = username
+
+		last_name = data.get("last_name")
+		if last_name : user.last_name = last_name
+
+		first_name = data.get("first_name")
+		if first_name : user.first_name = first_name
+
+		password = data.get("password")
+		if password : user.set_password(password)
+
+		is_active = data.get("is_active")
+		if is_active!=None : user.is_active = is_active
+
+		group = data.get("group")
+		if group:
+			user.groups.clear()
+			user.is_superuser = False
+			if group == "admin":
+				user.is_superuser = True
+			else:
+				try:
+					group = Group.objects.get(name=group)
+					user.groups.add(group)
+				except:
+					return Response({"status":"groupe invalide"}, 400)
+
+		user.save()
+		serializer = UserSerializer(user, many=False)
+		return Response(serializer.data, 200)
+
+	def patch(self, request, *args, **kwargs):
+		return self.update(request, *args, **kwargs)
+
+	@transaction.atomic
+	def destroy(self, request, *args, **kwargs):
+		user = self.get_object()
+		user.is_active = False
+		user.save()
+		return Response({'status': 'success'}, 204)
 
 # Views for Admins
 
@@ -196,9 +244,6 @@ class UtilisateurViewset(viewsets.ModelViewSet):
 		else:
 			return Response({"status": "echec"}, 401)
 
-
-
-
 class DomainViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated,]
@@ -234,16 +279,42 @@ class ProductViewset(mixins.ListModelMixin,
 	filterset_fields = {
 		'category': ['exact'],
 	}
-	search_fields = ['name', 'category__name']
+	search_fields = ['category__name','materiel','designation','reference', 'quantite', 'date_peremption', 'unite']
+	
+	def get_queryset(self):
+		queryset = Product.objects.all().order_by('-id')
+		du = self.request.query_params.get('du')
+		au = self.request.query_params.get('au')
+
+		if du is not None:
+			queryset = queryset.filter(date__gte=du, date__lte=au)
+		return queryset
+
 
 	@transaction.atomic
 	def create(self, request, *args, **kwargs):
-		many = True if isinstance(request.data, list) else False
-		serializer = self.get_serializer(data=request.data, many=many)
-		serializer.is_valid(raise_exception=True)
-		self.perform_create(serializer)
-		headers = self.get_success_headers(serializer.data)
+		data = request.data
+		cat = data.get("category")
+		category = None
+		if(cat.get("name")):
+			category, created = Category.objects.get_or_create(
+				name = cat.get("name")
+			)
+			category.save()
+		designation = data.get("designation")
+		materiel = data.get("materiel")
+		quantite = int(data.get("quantite"))
+		reference = data.get("reference")
+		status = data.get("status")
+		date_peremption = data.get("date_peremption")
+		unite = data.get("unite")
+		produit = Product(
+			date_peremption=date_peremption,status=status,unite=unite,designation=designation, materiel=materiel,quantite=quantite,reference=reference, category=category
+		)
+		produit.save()
+		serializer = ProductSerializer(produit, many=False)
 		return Response(serializer.data, 201)
+
 
 class BonLivraisonViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -256,39 +327,23 @@ class BonLivraisonViewset(viewsets.ModelViewSet):
 		'produit': ['exact'],
 	}
 	search_fields = ['num_commande','produit__reference']
+
+	def get_queryset(self):
+		return BonLivraison.objects.filter(user=self.request.user)
+
 class BonLivraisonItemsViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = BonLivraisonItems.objects.all()
 	pagination_class = Pagination
 	serializer_class = BonLivraisonItemsSerializer
-	filter_backends = (filters.SearchFilter,)
+	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
-		'produit': ['exact'],
+		'bonLivraison': ['exact'],
 	}
-	search_fields = ['num_commande','produit__reference']
-class OrderBonLivraisonViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = OrderBonLivraison.objects.all()
-	pagination_class = Pagination
-	serializer_class = OrderBonLivraisonSerializer
-	filter_backends = (filters.SearchFilter,)
-	filterset_fields = {
-		'produit': ['exact'],
-	}
-	search_fields = ['num_commande','produit__reference']
-class OrderBonLivraisonItemsViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
-	permission_classes = [IsAuthenticated,]
-	queryset = OrderBonLivraisonItems.objects.all()
-	pagination_class = Pagination
-	serializer_class = OrderBonLivraisonItemsSerializer
-	filter_backends = (filters.SearchFilter,)
-	filterset_fields = {
-		'produit': ['exact'],
-	}
-	search_fields = ['num_commande','produit__reference']
+	search_fields = ['qte_livree', 'bonLivraison__id']
+
+
 class CommandeViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated,]
@@ -296,10 +351,50 @@ class CommandeViewset(viewsets.ModelViewSet):
 	pagination_class = Pagination
 	serializer_class = CommandeSerializer
 	filter_backends = (filters.SearchFilter,)
+	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
-		'produit': ['exact'],
+		'user': ['exact'],
 	}
-	search_fields = ['num_commande','produit__reference']
+
+	search_fields = ['num_commande','date_commande','laboratoire__name', 'user__username']
+
+	def get_queryset(self):
+		return Commande.objects.filter(user=self.request.user)
+
+	@transaction.atomic
+	def create(self, request, *args, **kwargs):
+		data = request.data
+		labo = data.get("laboratoire")
+		laboratoire = None
+		if(labo.get("name")):
+			laboratoire, created = Laboratoire.objects.get_or_create(
+				name = labo.get("name")
+			)
+			laboratoire.save()
+		num_commande = data.get("num_commande")
+		commande = Commande(
+			user=request.user, num_commande=num_commande, laboratoire=laboratoire
+		)
+		commande.save()		
+		for item in data.get("items"):
+			product:Product = Product.objects.get(id=item.get("product"))
+			quantite = int(item.get("quantity"))
+			commandeitems = CommandeItem(
+				product=product, commande=commande, qte_commande=quantite
+			)
+			commandeitems.save()
+			# if product.quantite<quantite:
+			# 	return Response({"status":"quantite demande est insuffisant en stock"}, 403)
+			# else:
+				# product.quantite-=quantite
+				# product.save();
+				
+			product.quantite-=quantite
+			product.save();
+			serializer = CommandeItemSerializer(CommandeItem, many=False)
+		commande.save()
+		serializer = CommandeSerializer(commande, many=False)
+		return Response(serializer.data, 201)
 
 class CommandeItemViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -307,9 +402,13 @@ class CommandeItemViewset(viewsets.ModelViewSet):
 	queryset = CommandeItem.objects.all()
 	pagination_class = Pagination
 	serializer_class = CommandeItemSerializer
-	filter_backends = (filters.SearchFilter,)
+	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+	filterset_fields = {
+		'commande': ['exact'],
+	}
+	search_fields = ['quantity', 'commande__id']
 
-	search_fields = ('qte_commande',)
+
 class OrderViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated,]
@@ -319,6 +418,10 @@ class OrderViewset(viewsets.ModelViewSet):
 	filter_backends = (filters.SearchFilter,)
 	search_fields = ('name',)
 
+	# def get_queryset(self):
+	# 	return Order.objects.filter(professeur=self.request.professeur)
+
+
 
 class OrderItemViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -326,8 +429,13 @@ class OrderItemViewset(viewsets.ModelViewSet):
 	queryset = OrderItem.objects.all()
 	pagination_class = Pagination
 	serializer_class = OrderItemSerializer
-	filter_backends = (filters.SearchFilter,)
-	search_fields = ('quantity',)
+	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+	filterset_fields = {
+		'order': ['exact'],
+	}
+	search_fields = ['quantity', 'order__id']
+
+
 
 
 

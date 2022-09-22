@@ -13,6 +13,11 @@ from django.contrib.auth.hashers import check_password
 # 		model = LastLogin
 # 		fields = "__all__"
 
+class LaboratoireSerializer(serializers.ModelSerializer):
+
+	class Meta:
+		model = Laboratoire
+		fields = ('id', 'name')
 
 class TokenPairSerializer(TokenObtainPairSerializer):
 	def validate(self, attrs):
@@ -155,40 +160,43 @@ class PasswordResetSerializer(serializers.Serializer):
 class ProductSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Product
-		fields = "__all__"
-		# depth=3
+		fields = ('id','category','status','unite','status', 'materiel','designation','reference', 'quantite','unite', 'get_absolute_url', 'date_peremption')
+		# fields = '__all__'
+		depth=1
 
 
 class CategorySerializer(serializers.ModelSerializer):
 	produit = ProductSerializer(many=True, read_only=True)
 	class Meta:
 		model = Category
-		fields = "__all__"
-
+		fields = ('id', 'name','produit', 'domain')
+		depth=1
 class DomainSerializer(serializers.HyperlinkedModelSerializer):
 	url = serializers.HyperlinkedIdentityField(view_name="api:domain-detail")
 	category = CategorySerializer(many=True, read_only=True)
 	class Meta:
 		model = Domain
-		# fields = "__all__"
+		fields = "__all__"
 		fields = ('id', 'url','category', 'name','get_thumbnail', 'date_added')
-
+		depth=1
 
 class BonLivraisonItemsSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = BonLivraisonItems
-		fields = "__all__"
-		# depth=3
+		fields = ('produit','bonLivraison','qte_livree','qte_restante',)
+		depth=2
 
 class BonLivraisonSerializer(serializers.ModelSerializer):
-	items = BonLivraisonItemsSerializer(many=True, read_only=True)
+	items_bons = BonLivraisonItemsSerializer(many=True)
 	class Meta:
 		model = BonLivraison
-		fields = '__all__'
-		# depth=3
+		fields='__all__'
+		# fields = ('items_bons','user', 'laboratoire', 'date_livraison', 'num_bon')
+		depth=1
+
 	def create(self, validated_data):
 		""" override create method """
-		items_data = validated_data.pop('items') # remove items from validated_data
+		items_data = validated_data.pop('items_bons') # remove items from validated_data
 		# order create 
 		order = BonLivraison.objects.create(**validated_data)
 
@@ -197,61 +205,50 @@ class BonLivraisonSerializer(serializers.ModelSerializer):
 			BonLivraisonItem.objects.create(order=order, **item_data)
 		return order
 
-class OrderBonLivraisonItemsSerializer(serializers.ModelSerializer):
-	class Meta:
-		model = OrderBonLivraisonItems
-		fields = "__all__"
-		# depth=3
-
-class OrderBonLivraisonSerializer(serializers.ModelSerializer):
-	items = BonLivraisonItemsSerializer(many=True, read_only=True)
-	class Meta:
-		model = OrderBonLivraison
-		fields = "__all__"
-		# depth=3
 class CommandeItemSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = CommandeItem
 		fields = (
 			'commande',
-			'produit',
+			'product',
 			'qte_commande',
+			'unite',
 		)
+		depth=1
+
 
 
 class CommandeSerializer(serializers.ModelSerializer):
-	items = CommandeItemSerializer(many=True, read_only=True)
+	items = CommandeItemSerializer(many=True)
 	class Meta:
 		model = Commande
-		fields = '__all__'
-		# depth=3
+		# fields = ('id',"items",'user', 'laboratoire', 'num_commande','date_commande','status')
+		fields='__all__'
+		depth=1
+
 	def create(self, validated_data):
 		""" override create method """
 		items_data = validated_data.pop('items') # remove items from validated_data
 		# order create 
-		order = Commande.objects.create(**validated_data)
+		commande = Commande.objects.create(**validated_data)
 
 		# order_item save 
-		for item_data in items_data:
-			CommandeItem.objects.create(order=order, **item_data)
-		return order
+		for item in items_data:
+			CommandeItem.objects.create(commande=commande, **item)
+		return commande
 
-class LaboratoireSerializer(serializers.ModelSerializer):
-
-	class Meta:
-		model = Laboratoire
-		fields = ('__all__')
 class OrderItemSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = OrderItem
 		fields = (
-			'commande',
 			'order',
 			'product',
 			'quantity',
 		)
+		depth=2
+
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -259,7 +256,7 @@ class OrderSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Order
 		fields = '__all__'
-		# depth=3
+		depth=2
 	def create(self, validated_data):
 		""" override create method """
 		items_data = validated_data.pop('items') # remove items from validated_data

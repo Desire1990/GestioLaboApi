@@ -14,15 +14,14 @@ router.register("Departement",DepartementViewset)
 router.register("decanat",DecanatViewset)
 router.register("domain",DomainViewset)
 router.register("category",CategoryViewset)
-router.register("product",ProductViewset)
+router.register("produit",ProductViewset)
 router.register("order",OrderViewset)
 router.register("orderItem",OrderItemViewset)
 router.register("commande",CommandeViewset)
 router.register("commandeItem",CommandeItemViewset)
 router.register("bonLivraison",BonLivraisonViewset)
 router.register("bonLivraisonItems",BonLivraisonItemsViewset)
-router.register("orderbonLivraison",OrderBonLivraisonViewset)
-router.register("orderbonLivraisonItems",OrderBonLivraisonItemsViewset)
+
 
 
 app_name='api'
