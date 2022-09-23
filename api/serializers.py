@@ -183,7 +183,8 @@ class DomainSerializer(serializers.HyperlinkedModelSerializer):
 class BonLivraisonItemsSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = BonLivraisonItems
-		fields = ('produit','bonLivraison','qte_livree','qte_restante',)
+		fields = "__all__"
+		# fields = ('produit','bonLivraison','qte_livree','qte_restante',)
 		depth=2
 
 class BonLivraisonSerializer(serializers.ModelSerializer):
@@ -192,7 +193,7 @@ class BonLivraisonSerializer(serializers.ModelSerializer):
 		model = BonLivraison
 		fields='__all__'
 		# fields = ('items_bons','user', 'laboratoire', 'date_livraison', 'num_bon')
-		depth=1
+		depth=2
 
 	def create(self, validated_data):
 		""" override create method """
@@ -211,6 +212,7 @@ class CommandeItemSerializer(serializers.ModelSerializer):
 		model = CommandeItem
 		fields = (
 			'commande',
+			# 'item',
 			'product',
 			'qte_commande',
 			'unite',
