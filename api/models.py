@@ -151,7 +151,7 @@ class Commande(models.Model):
 	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
 	envoye = models.BooleanField(default=False)
 	envoyee = models.BooleanField(default=False)
-	envoyeee = models.BooleanField(default=False)
+	# envoyeee = models.BooleanField(default=False)
 	def __str__(self):
 		return f'{self.num_commande}'
 
@@ -180,8 +180,8 @@ class BonLivraison(models.Model):
 	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')	
 	envoye = models.BooleanField(default=False)
 	envoyee = models.BooleanField(default=False)
-	envoyeee = models.BooleanField(default=False)
-	
+	# envoyeee = models.BooleanField(default=False)
+
 	def __str__(self):
 		return f'{self.num_bon}'
 
@@ -191,6 +191,7 @@ class BonLivraisonItems(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	bonLivraison = models.ForeignKey(BonLivraison,related_name='items_bons', on_delete=models.CASCADE)
 	produit = models.ForeignKey(Product, on_delete=models.CASCADE)
+	items = models.ForeignKey(CommandeItem, on_delete=models.PROTECT)
 	qte_livree = models.IntegerField(default=0)
 	qte_restante = models.IntegerField(default=0)
 	unite = models.CharField(choices=UNITE_CHOICE, max_length=200, null=True)
