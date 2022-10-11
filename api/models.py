@@ -121,7 +121,7 @@ class Product(models.Model):
 	materiel = models.CharField(max_length=200)
 	reference = models.CharField(unique=True,max_length=50)
 	designation = models.TextField()
-	quantite = models.IntegerField(default=0)
+	quantite = models.FloatField(default=0)
 	unite = models.CharField(max_length=20, choices=UNITE_CHOICE, null=True, blank=True)
 	status = models.CharField(max_length=20, choices=STATUS_CHOICE, null=True, blank=True)
 	date_reception = models.DateTimeField(_('Caractéristiques complémentaires'),auto_now_add=True)
@@ -143,7 +143,7 @@ class Product(models.Model):
 
 class Commande(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	user = models.ForeignKey(User, on_delete=models.CASCADE)
+	user = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
 	laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
 	num_commande = models.CharField(max_length=50)
 	date_commande = models.DateTimeField(auto_now_add=True)
@@ -151,7 +151,7 @@ class Commande(models.Model):
 	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
 	envoye = models.BooleanField(default=False)
 	envoyee = models.BooleanField(default=False)
-	# envoyeee = models.BooleanField(default=False)
+	envoyeee = models.BooleanField(default=False)
 	def __str__(self):
 		return f'{self.num_commande}'
 
@@ -162,7 +162,7 @@ class CommandeItem(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	commande = models.ForeignKey(Commande,related_name='items', on_delete=models.CASCADE)
 	product = models.ForeignKey(Product, on_delete=models.CASCADE)
-	qte_commande = models.IntegerField(default=0)
+	qte_commande = models.FloatField(default=0)
 	unite = models.CharField(choices=UNITE_CHOICE, max_length=200, null=True)
 	
 	
@@ -171,7 +171,7 @@ class CommandeItem(models.Model):
 
 class BonLivraison(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	user = models.ForeignKey(User, on_delete=models.CASCADE)
+	user = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
 	laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
 	commande = models.ForeignKey(Commande, on_delete=models.CASCADE)
 	num_bon = models.CharField(max_length=50)
@@ -189,21 +189,21 @@ class BonLivraison(models.Model):
 
 class BonLivraisonItems(models.Model):
 	id=models.SmallAutoField(primary_key=True)
+	user = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
 	bonLivraison = models.ForeignKey(BonLivraison,related_name='items_bons', on_delete=models.CASCADE)
 	produit = models.ForeignKey(Product, on_delete=models.CASCADE)
-	items = models.ForeignKey(CommandeItem, on_delete=models.PROTECT)
-	qte_livree = models.IntegerField(default=0)
-	qte_restante = models.IntegerField(default=0)
+	qte_livree = models.FloatField(default=0)
+	qte_restante = models.FloatField(default=0)
 	unite = models.CharField(choices=UNITE_CHOICE, max_length=200, null=True)
 
 	
 	def __str__(self):
-		return str(self.bonLivraison.commande)  
+		return str(self.bonLivraison.user)
 
 # order in labos
 class Order(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	user = models.ForeignKey(User, on_delete=models.PROTECT)
+	user = models.ForeignKey("Utilisateur", on_delete=models.PROTECT)
 	num_order = models.CharField(max_length=50)
 	bonLivraison = models.ForeignKey(BonLivraison, on_delete=models.CASCADE)
 	description = models.TextField()
@@ -213,13 +213,13 @@ class Order(models.Model):
 	envoye = models.BooleanField(default=False)
 	envoyee = models.BooleanField(default=False)
 	def __str__(self):
-		return str(self.num_order)
+		return self.num_order
 
 class OrderItem(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
 	product = models.ForeignKey(Product, related_name='items', on_delete=models.CASCADE)
-	quantity = models.IntegerField(default=1)
+	quantity = models.FloatField(default=1)
 	unite = models.CharField(choices=UNITE_CHOICE, max_length=200, null=True)
 
 
