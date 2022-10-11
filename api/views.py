@@ -326,10 +326,16 @@ class BonLivraisonViewset(viewsets.ModelViewSet):
 	filterset_fields = {
 		'produit': ['exact'],
 	}
-	search_fields = ['num_commande','produit__reference']
+	search_fields = ['num_bon','laboratoire__name']
 
 	def get_queryset(self):
-		return BonLivraison.objects.filter(user=self.request.user)
+		queryset = BonLivraison.objects.filter(user=self.request.user.utilisateur)#all().order_by('-id')
+		du = self.request.query_params.get('du')
+		au = self.request.query_params.get('au')
+
+		if du is not None:
+			queryset = queryset.filter(date__gte=du, date__lte=au)
+		return queryset
 
 class BonLivraisonItemsViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -343,6 +349,15 @@ class BonLivraisonItemsViewset(viewsets.ModelViewSet):
 	}
 	search_fields = ['qte_livree', 'bonLivraison__id']
 
+	def get_queryset(self):
+		queryset = BonLivraisonItems.objects.filter(user=self.request.user.utilisateur)#all().order_by('-id')
+		du = self.request.query_params.get('du')
+		au = self.request.query_params.get('au')
+
+		if du is not None:
+			queryset = queryset.filter(date__gte=du, date__lte=au)
+		return queryset
+
 
 class CommandeViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -354,12 +369,56 @@ class CommandeViewset(viewsets.ModelViewSet):
 	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
 		'user': ['exact'],
+        'date_commande': ['exact'], 'envoye': ['exact'], 'envoyee': ['exact']
 	}
 
 	search_fields = ['num_commande','date_commande','laboratoire__name', 'user__username']
 
+	@action(methods=["GET"], detail=True, url_path=r'envoyer', url_name=r'envoyer')
+	@transaction.atomic()
+	def envoyer(self, request, pk):
+		commande: Commande = Commande.objects.get(id=pk)
+		commande.envoye = True
+		print(commande)
+		commande.save()
+		return Response({"status": "commande envoyé avec success"}, 201)
+
+	@action(methods=["GET"], detail=False, url_path=r'envoyer-all', url_name=r'envoyer-all')
+	@transaction.atomic()
+	def envoyerAll(self, request):
+		utilisateur = Utilisateur.objects.get(user=request.user)
+		print(utilisateur.departement.id)
+		commandes = Commande.objects.filter(
+			envoye=False, departement__id=utilisateur.departement.id)
+		print(commandes)
+		for commande in commandes:
+			commande.envoye = True
+			commande.save()
+
+		return Response({"status": "commandes envoyé avec success"}, 201)
+
+	@action(methods=["GET"], detail=False, url_path=r'envoyee-all', url_name=r'envoyee-all')
+	@transaction.atomic()
+	def envoyeeAll(self, request):
+		utilisateur = Utilisateur.objects.get(user=request.user)
+		print(utilisateur.decanat.id)
+		commandes = Commande.objects.filter(
+			envoyee=False, decanant__id=utilisateur.decanat.id)
+		print(commandes)
+		for commande in commandes:
+			commande.envoyee = True
+			commande.save()
+
+		return Response({"status": "commandes envoyé avec success"}, 201)
+
 	def get_queryset(self):
-		return Commande.objects.filter(user=self.request.user)
+		queryset = Commande.objects.filter(user=self.request.user.utilisateur)#all().order_by('-id')
+		du = self.request.query_params.get('du')
+		au = self.request.query_params.get('au')
+
+		if du is not None:
+			queryset = queryset.filter(date__gte=du, date__lte=au)
+		return queryset
 
 	@transaction.atomic
 	def create(self, request, *args, **kwargs):
@@ -373,12 +432,12 @@ class CommandeViewset(viewsets.ModelViewSet):
 			laboratoire.save()
 		num_commande = data.get("num_commande")
 		commande = Commande(
-			user=request.user, num_commande=num_commande, laboratoire=laboratoire
+			user=request.user.utilisateur, num_commande=num_commande, laboratoire=laboratoire
 		)
 		commande.save()		
 		for item in data.get("items"):
 			product:Product = Product.objects.get(id=item.get("product"))
-			quantite = int(item.get("quantity"))
+			quantite = float(item.get("quantity"))
 			commandeitems = CommandeItem(
 				product=product, commande=commande, qte_commande=quantite
 			)
@@ -395,6 +454,8 @@ class CommandeViewset(viewsets.ModelViewSet):
 		commande.save()
 		serializer = CommandeSerializer(commande, many=False)
 		return Response(serializer.data, 201)
+
+
 
 class CommandeItemViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -416,12 +477,44 @@ class OrderViewset(viewsets.ModelViewSet):
 	pagination_class = Pagination
 	serializer_class = OrderSerializer
 	filter_backends = (filters.SearchFilter,)
-	search_fields = ('name',)
-
-	# def get_queryset(self):
-	# 	return Order.objects.filter(professeur=self.request.professeur)
+	search_fields = ('num_order',)
 
 
+	def get_queryset(self):
+		queryset = Order.objects.filter(user=self.request.user.utilisateur)#all().order_by('-id')
+		du = self.request.query_params.get('du')
+		au = self.request.query_params.get('au')
+
+		if du is not None:
+			queryset = queryset.filter(date__gte=du, date__lte=au)
+		return queryset
+
+	@transaction.atomic
+	def create(self, request, *args, **kwargs):
+		data = request.data
+		bonLivraison:BonLivraison=BonLivraison.objects.all().latest('id')
+		order:Order=Order.objects.all().latest('id')
+		num_order = data.get("num_order")
+		description = data.get("description")
+		order = Order(
+			bonLivraison=bonLivraison, user=request.user.utilisateur, num_order=num_order, description=description
+		)
+		order.save()		
+		for item in data.get("items"):
+			product:Product = Product.objects.get(id=item.get("product"))
+			quantity = float(item.get("quantity"))
+			orderItem = OrderItem(
+				product=product, order=order, quantity=quantity
+				)
+			orderItem.save()		
+			# product.quantite-=quantite
+			product.save();
+			serializer = OrderItemSerializer(orderItem, many=False)
+		order.save()
+		serializer = OrderSerializer(order, many=False)
+		return Response(serializer.data, 201)
+
+	
 
 class OrderItemViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -434,10 +527,6 @@ class OrderItemViewset(viewsets.ModelViewSet):
 		'order': ['exact'],
 	}
 	search_fields = ['quantity', 'order__id']
-
-
-
-
 
 
 class ChangePasswordView(generics.UpdateAPIView):
