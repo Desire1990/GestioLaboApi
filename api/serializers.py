@@ -172,12 +172,12 @@ class CategorySerializer(serializers.ModelSerializer):
 		fields = ('id', 'name','produit', 'domain')
 		depth=1
 class DomainSerializer(serializers.HyperlinkedModelSerializer):
-	url = serializers.HyperlinkedIdentityField(view_name="api:domain-detail")
+	# url = serializers.HyperlinkedIdentityField(view_name="api:domain-detail")
 	category = CategorySerializer(many=True, read_only=True)
 	class Meta:
 		model = Domain
 		fields = "__all__"
-		fields = ('id', 'url','category', 'name','get_thumbnail', 'date_added')
+		fields = ('id','category', 'name','get_thumbnail', 'date_added')
 		depth=1
 
 class BonLivraisonItemsSerializer(serializers.ModelSerializer):
@@ -227,7 +227,7 @@ class CommandeSerializer(serializers.ModelSerializer):
 		model = Commande
 		# fields = ('id',"items",'user', 'laboratoire', 'num_commande','date_commande','status')
 		fields='__all__'
-		depth=1
+		depth=2
 
 	def create(self, validated_data):
 		""" override create method """
@@ -244,21 +244,17 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = OrderItem
-		fields = (
-			'order',
-			'product',
-			'quantity',
-		)
-		depth=2
+		fields ="__all__"
+		depth=3
 
 
 
 class OrderSerializer(serializers.ModelSerializer):
-	items = OrderItemSerializer(many=True, read_only=True)
+	items = OrderItemSerializer(many=True)
 	class Meta:
 		model = Order
 		fields = '__all__'
-		depth=2
+		depth=3
 	def create(self, validated_data):
 		""" override create method """
 		items_data = validated_data.pop('items') # remove items from validated_data
