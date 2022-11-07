@@ -1,0 +1,337 @@
+@startuml
+class "admin.LogEntry <Administration>" as admin.LogEntry #f4d6f1 {
+    log entry
+    --
+    - id (AutoField)
+    + action_time (DateTimeField)
+    ~ user (ForeignKey)
+    ~ content_type (ForeignKey)
+    + object_id (TextField)
+    + object_repr (CharField)
+    + action_flag (PositiveSmallIntegerField)
+    + change_message (TextField)
+    --
+}
+admin.LogEntry *-- auth.User
+admin.LogEntry *-- contenttypes.ContentType
+
+
+class "auth.Permission <Authentication and Authorization>" as auth.Permission #e8f4d6 {
+    permission
+    --
+    - id (AutoField)
+    + name (CharField)
+    ~ content_type (ForeignKey)
+    + codename (CharField)
+    --
+}
+auth.Permission *-- contenttypes.ContentType
+
+
+class "auth.Group <Authentication and Authorization>" as auth.Group #e8f4d6 {
+    group
+    --
+    - id (AutoField)
+    + name (CharField)
+    # permissions (ManyToManyField)
+    --
+}
+auth.Group *--* auth.Permission
+
+
+class "auth.User <Authentication and Authorization>" as auth.User #e8f4d6 {
+    user
+    --
+    - id (AutoField)
+    + password (CharField)
+    + last_login (DateTimeField)
+    + is_superuser (BooleanField)
+    + username (CharField)
+    + first_name (CharField)
+    + last_name (CharField)
+    + email (EmailField)
+    + is_staff (BooleanField)
+    + is_active (BooleanField)
+    + date_joined (DateTimeField)
+    # groups (ManyToManyField)
+    # user_permissions (ManyToManyField)
+    --
+}
+auth.User *--* auth.Group
+auth.User *--* auth.Permission
+
+
+class "contenttypes.ContentType <Content Types>" as contenttypes.ContentType #d6f4de {
+    content type
+    --
+    - id (AutoField)
+    + app_label (CharField)
+    + model (CharField)
+    --
+}
+
+
+class "sessions.Session <Sessions>" as sessions.Session #f4e1d6 {
+    session
+    --
+    + session_key (CharField)
+    + session_data (TextField)
+    + expire_date (DateTimeField)
+    --
+}
+
+
+class "api.LastLogin <Api>" as api.LastLogin #dbd6f4 {
+    last login
+    --
+    + id (SmallAutoField)
+    + date (DateTimeField)
+    --
+}
+
+
+class "api.Laboratoire <Api>" as api.Laboratoire #dbd6f4 {
+    laboratoire
+    --
+    + id (SmallAutoField)
+    + name (CharField)
+    + date_added (DateTimeField)
+    --
+}
+
+
+class "api.Domain <Api>" as api.Domain #dbd6f4 {
+    domain
+    --
+    + id (SmallAutoField)
+    + name (CharField)
+    + image (ImageField)
+    + thumbnail (ImageField)
+    + date_added (DateTimeField)
+    --
+}
+
+
+class "api.Category <Api>" as api.Category #dbd6f4 {
+    category
+    --
+    + id (SmallAutoField)
+    ~ domain (ForeignKey)
+    + name (CharField)
+    + created_date (DateTimeField)
+    --
+}
+api.Category *-- api.Domain
+
+
+class "api.Product <Api>" as api.Product #dbd6f4 {
+    product
+    --
+    + id (SmallAutoField)
+    ~ category (ForeignKey)
+    + materiel (CharField)
+    + reference (CharField)
+    + designation (TextField)
+    + quantite (FloatField)
+    + unite (CharField)
+    + status (CharField)
+    + date_reception (DateTimeField)
+    + date_peremption (DateTimeField)
+    --
+}
+api.Product *-- api.Category
+
+
+class "api.Commande <Api>" as api.Commande #dbd6f4 {
+    commande
+    --
+    + id (SmallAutoField)
+    ~ user (ForeignKey)
+    ~ laboratoire (ForeignKey)
+    + num_commande (CharField)
+    + date_commande (DateTimeField)
+    + date_livraison (DateTimeField)
+    + status (CharField)
+    + envoye (BooleanField)
+    + envoyee (BooleanField)
+    + envoyeee (BooleanField)
+    --
+}
+api.Commande *-- api.Utilisateur
+api.Commande *-- api.Laboratoire
+
+
+class "api.CommandeItem <Api>" as api.CommandeItem #dbd6f4 {
+    commande item
+    --
+    + id (SmallAutoField)
+    ~ commande (ForeignKey)
+    ~ product (ForeignKey)
+    + qte_commande (FloatField)
+    + unite (CharField)
+    --
+}
+api.CommandeItem *-- api.Commande
+api.CommandeItem *-- api.Product
+
+
+class "api.BonLivraison <Api>" as api.BonLivraison #dbd6f4 {
+    bon livraison
+    --
+    + id (SmallAutoField)
+    ~ user (ForeignKey)
+    ~ laboratoire (ForeignKey)
+    ~ commande (ForeignKey)
+    + num_bon (CharField)
+    + date_commande (DateTimeField)
+    + date_livraison (DateTimeField)
+    + status (CharField)
+    + envoye (BooleanField)
+    + envoyee (BooleanField)
+    --
+}
+api.BonLivraison *-- api.Utilisateur
+api.BonLivraison *-- api.Laboratoire
+api.BonLivraison *-- api.Commande
+
+
+class "api.BonLivraisonItems <Api>" as api.BonLivraisonItems #dbd6f4 {
+    bon livraison items
+    --
+    + id (SmallAutoField)
+    ~ user (ForeignKey)
+    ~ bonLivraison (ForeignKey)
+    ~ produit (ForeignKey)
+    + qte_livree (FloatField)
+    + qte_restante (FloatField)
+    + unite (CharField)
+    --
+}
+api.BonLivraisonItems *-- api.Utilisateur
+api.BonLivraisonItems *-- api.BonLivraison
+api.BonLivraisonItems *-- api.Product
+
+
+class "api.Order <Api>" as api.Order #dbd6f4 {
+    order
+    --
+    + id (SmallAutoField)
+    ~ user (ForeignKey)
+    + num_order (CharField)
+    ~ bonLivraison (ForeignKey)
+    + description (TextField)
+    + created_at (DateTimeField)
+    + updated_at (DateTimeField)
+    + status (CharField)
+    + envoye (BooleanField)
+    + envoyee (BooleanField)
+    --
+}
+api.Order *-- api.Utilisateur
+api.Order *-- api.BonLivraison
+
+
+class "api.OrderItem <Api>" as api.OrderItem #dbd6f4 {
+    order item
+    --
+    + id (SmallAutoField)
+    ~ order (ForeignKey)
+    ~ product (ForeignKey)
+    + quantity (FloatField)
+    + unite (CharField)
+    --
+}
+api.OrderItem *-- api.Order
+api.OrderItem *-- api.Product
+
+
+class "api.Decanat <Api>" as api.Decanat #dbd6f4 {
+    decanat
+    --
+    + id (SmallAutoField)
+    ~ user (ForeignKey)
+    + name (CharField)
+    + created_date (DateTimeField)
+    --
+}
+api.Decanat *-- auth.User
+
+
+class "api.Departement <Api>" as api.Departement #dbd6f4 {
+    departement
+    --
+    + id (SmallAutoField)
+    ~ user (ForeignKey)
+    ~ laboratoire (ForeignKey)
+    ~ decanat (ForeignKey)
+    + name (CharField)
+    + created_date (DateTimeField)
+    --
+}
+api.Departement *-- auth.User
+api.Departement *-- api.Laboratoire
+api.Departement *-- api.Decanat
+
+
+class "api.Professeur <Api>" as api.Professeur #dbd6f4 {
+    professeur
+    --
+    + id (BigAutoField)
+    ~ user (OneToOneField)
+    ~ departement (ForeignKey)
+    + date_created (DateTimeField)
+    --
+}
+api.Professeur *-- api.Departement
+
+
+class "api.Utilisateur <Api>" as api.Utilisateur #dbd6f4 {
+    utilisateur
+    --
+    + id (BigAutoField)
+    ~ user (OneToOneField)
+    ~ departement (ForeignKey)
+    ~ decanat (ForeignKey)
+    + date (DateTimeField)
+    + reset (CharField)
+    --
+}
+api.Utilisateur *-- api.Departement
+api.Utilisateur *-- api.Decanat
+
+
+class "authtoken.Token <Auth Token>" as authtoken.Token #f4ecd6 {
+    Token
+    --
+    + key (CharField)
+    ~ user (OneToOneField)
+    + created (DateTimeField)
+    --
+}
+
+
+class "authtoken.TokenProxy <Auth Token>" as authtoken.TokenProxy #f4ecd6 {
+    token
+    --
+    + key (CharField)
+    ~ user (OneToOneField)
+    + created (DateTimeField)
+    --
+}
+
+
+class "django_rest_passwordreset.ResetPasswordToken <Django_Rest_Passwordreset>" as django_rest_passwordreset.ResetPasswordToken #ecf4d6 {
+    Password Reset Token
+    --
+    - id (AutoField)
+    ~ user (ForeignKey)
+    + created_at (DateTimeField)
+    + key (CharField)
+    + ip_address (GenericIPAddressField)
+    + user_agent (CharField)
+    --
+}
+django_rest_passwordreset.ResetPasswordToken *-- auth.User
+
+
+@enduml
