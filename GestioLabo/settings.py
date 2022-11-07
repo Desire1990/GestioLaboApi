@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     'rest_auth',
     'django_rest_passwordreset',
     'django_extensions',
+    'models2puml',
+    'puml_generator',
 
 ]
 MIDDLEWARE = [
