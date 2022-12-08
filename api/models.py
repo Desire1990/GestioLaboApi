@@ -16,6 +16,11 @@ from django.core.files import File
 from PIL import Image
 from django.db import transaction
 
+import barcode                      # additional imports for bar code
+from barcode.writer import ImageWriter
+from io import BytesIO
+from django.core.files import File
+
 UNITE_CHOICE=(
 		('pc(s)','pc(s)'),
 		('kg', 'kg'),
@@ -59,7 +64,7 @@ class Domain(models.Model):
 	thumbnail = models.ImageField(upload_to='uploads/domains/thumbnail/', null=True,  blank=True)
 	date_added=models.DateTimeField(auto_now_add=True)
 
-	class Meta:
+	class Meta: 
 		ordering = ('id',)
 		verbose_name = 'domain'
 		verbose_name_plural = 'domains'
@@ -126,6 +131,7 @@ class Product(models.Model):
 	status = models.CharField(max_length=20, choices=STATUS_CHOICE, null=True, blank=True)
 	date_reception = models.DateTimeField(_('Caractéristiques complémentaires'),auto_now_add=True)
 	date_peremption = models.DateTimeField()
+	# barcode = models.ImageField(upload_to='products/codes',blank=True)
 	class Meta:
 		ordering = ('id',)
 		verbose_name = 'product'
@@ -137,23 +143,32 @@ class Product(models.Model):
 	def get_absolute_url(self):
 		return f'/{self.materiel}/'
 
+	# def save(self, *args, **kwargs):          # overriding save() 
+	# 	COD128 = barcode.get_barcode_class('code128')
+	# 	rv = BytesIO()
+	# 	code = COD128(f'{self.reference}', writer=ImageWriter()).write(rv)
+	# 	self.barcode.save(f'{self.reference}.png', File(rv), save=False)
+	# 	return super().save(*args, **kwargs)
+
+
 
 
 # commandes pour les Laboratoires vers le stock central
 
 class Commande(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	user = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
-	laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
+	utilisateur = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
+	# laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
 	num_commande = models.CharField(max_length=50)
 	date_commande = models.DateTimeField(auto_now_add=True)
 	date_livraison = models.DateTimeField(auto_now_add=True)
 	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
-	envoye = models.BooleanField(default=False)
-	envoyee = models.BooleanField(default=False)
-	envoyeee = models.BooleanField(default=False)
+	envoye = models.BooleanField(default=False) # labo
+	envoyee = models.BooleanField(default=False)#departement
+	envoyeee = models.BooleanField(default=False)#decanat
+	
 	def __str__(self):
-		return f'{self.num_commande}'
+		return f'{self.num_commande}-{self.utilisateur.user.username}'
 
 
 	class Meta:
@@ -165,14 +180,16 @@ class CommandeItem(models.Model):
 	qte_commande = models.FloatField(default=0)
 	unite = models.CharField(choices=UNITE_CHOICE, max_length=200, null=True)
 	
-	
+	class Meta:
+		ordering = ('-id',)
+
 	def __str__(self):
 		return str(self.commande)    
 
 class BonLivraison(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	user = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
-	laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
+	utilisateur = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
+	# laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
 	commande = models.ForeignKey(Commande, on_delete=models.CASCADE)
 	num_bon = models.CharField(max_length=50)
 	date_commande = models.DateTimeField(auto_now_add=True)
@@ -183,27 +200,29 @@ class BonLivraison(models.Model):
 	# envoyeee = models.BooleanField(default=False)
 
 	def __str__(self):
-		return f'{self.num_bon}'
+		return f'{self.num_bon}-{self.commande.utilisateur.user}'
 
 
 
 class BonLivraisonItems(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	user = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
+	utilisateur = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
 	bonLivraison = models.ForeignKey(BonLivraison,related_name='items_bons', on_delete=models.CASCADE)
-	produit = models.ForeignKey(Product, on_delete=models.CASCADE)
+	product = models.ForeignKey(Product, on_delete=models.CASCADE)
 	qte_livree = models.FloatField(default=0)
-	qte_restante = models.FloatField(default=0)
+	qte_restante = models.FloatField(default=0, editable=False)
 	unite = models.CharField(choices=UNITE_CHOICE, max_length=200, null=True)
 
+	class Meta:
+		ordering = ('-id',)
 	
 	def __str__(self):
-		return str(self.bonLivraison.user)
+		return str(self.bonLivraison.utilisateur.user)
 
 # order in labos
 class Order(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	user = models.ForeignKey("Utilisateur", on_delete=models.PROTECT)
+	utilisateur = models.ForeignKey("Utilisateur", on_delete=models.PROTECT)
 	num_order = models.CharField(max_length=50)
 	bonLivraison = models.ForeignKey(BonLivraison, on_delete=models.CASCADE)
 	description = models.TextField()
@@ -212,6 +231,10 @@ class Order(models.Model):
 	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
 	envoye = models.BooleanField(default=False)
 	envoyee = models.BooleanField(default=False)
+	
+	class Meta:
+		ordering = ('-id',)
+		
 	def __str__(self):
 		return self.num_order
 
@@ -226,6 +249,9 @@ class OrderItem(models.Model):
 	def __str__(self):
 		return f'{self.order} - {self.product}'
 
+	class Meta:
+		ordering = ('-id',)
+		
 
 
 
@@ -254,12 +280,15 @@ class Decanat(models.Model):
 class Departement(models.Model):
 	id = models.SmallAutoField(primary_key=True)	
 	user = models.ForeignKey(User, related_name='user_departement',on_delete=models.PROTECT)
-	laboratoire = models.ForeignKey(Laboratoire, on_delete=models.PROTECT)
 	decanat = models.ForeignKey(Decanat, related_name='decanat_departement', on_delete=models.PROTECT)
 	name = models.CharField(max_length=200, null=False, blank=False)
 	created_date = models.DateTimeField(auto_now_add=True)
 	def __str__(self):
 		return self.name
+	
+	class Meta:
+		ordering = ('-id',)
+		
 
 class Professeur(models.Model):
 	id = models.BigAutoField(primary_key=True)
@@ -270,7 +299,9 @@ class Professeur(models.Model):
 	  
 	def __str__(self):
 		return f"{self.user.username}"
-
+	class Meta:
+		ordering = ('-id',)
+		
 class Utilisateur(models.Model):
 	id = models.BigAutoField(primary_key=True)
 	user = models.OneToOneField(User, on_delete=models.PROTECT, null=True, blank=True)
@@ -282,3 +313,6 @@ class Utilisateur(models.Model):
 
 	def __str__(self):
 		return f"{self.user}"
+	class Meta:
+		ordering = ('-id',)
+		
