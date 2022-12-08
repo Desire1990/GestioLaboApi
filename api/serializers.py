@@ -223,9 +223,9 @@ class CommandeItemSerializer(serializers.ModelSerializer):
 
 class CommandeSerializer(serializers.ModelSerializer):
 	items = CommandeItemSerializer(many=True)
+	
 	class Meta:
 		model = Commande
-		# fields = ('id',"items",'user', 'laboratoire', 'num_commande','date_commande','status')
 		fields='__all__'
 		depth=2
 
