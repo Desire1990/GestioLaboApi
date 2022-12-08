@@ -251,7 +251,7 @@ class DomainViewset(viewsets.ModelViewSet):
 	pagination_class = Pagination
 	serializer_class = DomainSerializer
 	filter_backends = (filters.SearchFilter,)
-	search_fields = ('name',)
+	search_fields = ('name', 'category__name')
 
 class CategoryViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -265,11 +265,12 @@ class CategoryViewset(viewsets.ModelViewSet):
 	}
 	search_fields = ['name', 'domain__id']
 
-class ProductViewset(mixins.ListModelMixin,
-					mixins.UpdateModelMixin,
-					mixins.RetrieveModelMixin,
-					mixins.CreateModelMixin,
-					viewsets.GenericViewSet):
+class ProductViewset(viewsets.ModelViewSet):
+# class ProductViewset(mixins.ListModelMixin,
+# 					mixins.UpdateModelMixin,
+# 					mixins.RetrieveModelMixin,
+# 					mixins.CreateModelMixin,
+# 					viewsets.GenericViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
 	permission_classes = [IsAuthenticated]
 	queryset = Product.objects.all()
@@ -294,6 +295,7 @@ class ProductViewset(mixins.ListModelMixin,
 	@transaction.atomic
 	def create(self, request, *args, **kwargs):
 		data = request.data
+		product = self.get_object()
 		cat = data.get("category")
 		category = None
 		if(cat.get("name")):
@@ -314,7 +316,37 @@ class ProductViewset(mixins.ListModelMixin,
 		produit.save()
 		serializer = ProductSerializer(produit, many=False)
 		return Response(serializer.data, 201)
+	
 
+	@transaction.atomic
+	def partial_update(self, request, *args, **kwargs):
+		data = request.data
+		product = self.get_object()		
+		quantite = int(data.get("quantite"))
+		produit = Product(
+			quantite=quantite
+		)
+		product.quantite+=produit.quantite
+		product.save()
+		print(product)
+		print(produit.quantite)
+		serializer = ProductSerializer(product, data=request.data, partial=True) # set partial=True to update a data partially
+		if serializer.is_valid():
+			serializer.save()
+			return JsonResponse(status=201, data=serializer.data)
+		return JsonResponse(status=400, data="wrong parameters")
+
+	@transaction.atomic()
+	@action(methods=['PUT'], detail=True, url_path=r'augmanter', url_name=r'augmenter')
+	def augmenter(self, request, pk):
+		product:Product=Product.objects.get(id=pk)
+		quantite = 1200
+		product=Product(
+			quantite=quantite)
+		product.quantite+=quantite
+		product.save()
+		serializer = ProductSerializer(product, many=False).data
+		return Response(serializer, 201)
 
 class BonLivraisonViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -322,20 +354,64 @@ class BonLivraisonViewset(viewsets.ModelViewSet):
 	queryset = BonLivraison.objects.all()
 	pagination_class = Pagination
 	serializer_class = BonLivraisonSerializer
-	filter_backends = (filters.SearchFilter,)
+	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
-		'produit': ['exact'],
+		'commande': ['exact'],
+		'utilisateur': ['exact'],
 	}
-	search_fields = ['num_bon','laboratoire__name']
-
+	search_fields = ['num_bon', 'commande__id','utilisateur__username']
+	
 	def get_queryset(self):
-		queryset = BonLivraison.objects.filter(user=self.request.user.utilisateur)#all().order_by('-id')
 		du = self.request.query_params.get('du')
 		au = self.request.query_params.get('au')
+
+		if self.request.user.is_superuser:
+			queryset = BonLivraison.objects.all()#.order_by('-id')
+		else:
+			queryset = BonLivraison.objects.filter(utilisateur=self.request.user.utilisateur)#all().order_by('-id')
 
 		if du is not None:
 			queryset = queryset.filter(date__gte=du, date__lte=au)
 		return queryset
+
+
+	@transaction.atomic
+	def create(self, request, *args, **kwargs):
+		data = request.data
+		num_bon = data.get("num_bon")		
+		com = data.get("commande")
+		commande = None
+		if(com.get("num_commande")):
+			commande, created = Commande.objects.get_or_create(
+				num_commande = com.get("num_commande")
+			)
+			commande.save()
+		bonLivraison = BonLivraison(
+			utilisateur=request.user.utilisateur,
+			num_bon=num_bon,
+			commande=commande
+		)
+		bonLivraison.save()		
+		for item in data.get("items"):
+			product:Product = Product.objects.get(id=item.get("product"))
+			quantite = float(item.get("quantity"))
+			bonLivraisonItems = BonLivraisonItems(
+				utilisateur=request.user.utilisateur,
+				product=product, 
+				bonLivraison=bonLivraison, 
+				qte_livree=quantite
+			)
+			# print(bonLivraison.command.qte_commande)
+			# bonLivraisonItems.qte_restante =bonLivraison.command.qte_commande - bonLivraisonItems.qte_livree
+			bonLivraisonItems.save()			
+			product.save();
+			serializer = BonLivraisonItemsSerializer(BonLivraisonItems, many=False)
+		bonLivraison.save()
+		serializer = BonLivraisonSerializer(bonLivraison, many=False)
+		return Response(serializer.data, 201)
+
+
+
 
 class BonLivraisonItemsViewset(viewsets.ModelViewSet):
 	authentication_classes = (SessionAuthentication, JWTAuthentication)
@@ -350,7 +426,7 @@ class BonLivraisonItemsViewset(viewsets.ModelViewSet):
 	search_fields = ['qte_livree', 'bonLivraison__id']
 
 	def get_queryset(self):
-		queryset = BonLivraisonItems.objects.filter(user=self.request.user.utilisateur)#all().order_by('-id')
+		queryset = BonLivraisonItems.objects.all().order_by('-id')
 		du = self.request.query_params.get('du')
 		au = self.request.query_params.get('au')
 
@@ -368,11 +444,11 @@ class CommandeViewset(viewsets.ModelViewSet):
 	filter_backends = (filters.SearchFilter,)
 	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
-		'user': ['exact'],
-        'date_commande': ['exact'], 'envoye': ['exact'], 'envoyee': ['exact']
+		'utilisateur': ['exact'],
+		'date_commande': ['exact'], 'envoye': ['exact'], 'envoyee': ['exact']
 	}
 
-	search_fields = ['num_commande','date_commande','laboratoire__name', 'user__username']
+	search_fields = ['num_commande','date_commande','laboratoire__name', 'utilisateur__username']
 
 	@action(methods=["GET"], detail=True, url_path=r'envoyer', url_name=r'envoyer')
 	@transaction.atomic()
@@ -387,9 +463,9 @@ class CommandeViewset(viewsets.ModelViewSet):
 	@transaction.atomic()
 	def envoyerAll(self, request):
 		utilisateur = Utilisateur.objects.get(user=request.user)
-		print(utilisateur.departement.id)
+		print(utilisateur.departement.name)
 		commandes = Commande.objects.filter(
-			envoye=False, departement__id=utilisateur.departement.id)
+			envoye=False)#, utilisateur=utilisateur.departement.id)
 		print(commandes)
 		for commande in commandes:
 			commande.envoye = True
@@ -403,7 +479,7 @@ class CommandeViewset(viewsets.ModelViewSet):
 		utilisateur = Utilisateur.objects.get(user=request.user)
 		print(utilisateur.decanat.id)
 		commandes = Commande.objects.filter(
-			envoyee=False, decanant__id=utilisateur.decanat.id)
+			envoyee=False)#, departement__id=utilisateur.decanat.id)
 		print(commandes)
 		for commande in commandes:
 			commande.envoyee = True
@@ -411,10 +487,28 @@ class CommandeViewset(viewsets.ModelViewSet):
 
 		return Response({"status": "commandes envoyé avec success"}, 201)
 
+	@action(methods=["GET"], detail=False, url_path=r'envoyeee-all', url_name=r'envoyeee-all')
+	@transaction.atomic()
+	def envoyeeeAll(self, request):
+		utilisateur = Utilisateur.objects.get(user=request.user)
+		print(utilisateur.decanat.id)
+		commandes = Commande.objects.filter(
+			envoyeee=False)#, decanat__id=utilisateur.decanat.id)
+		print(commandes)
+		for commande in commandes:
+			commande.envoyeee = True
+			commande.save()
+
+		return Response({"status": "commandes envoyé avec success"}, 201)
+
 	def get_queryset(self):
-		queryset = Commande.objects.filter(user=self.request.user.utilisateur)#all().order_by('-id')
 		du = self.request.query_params.get('du')
 		au = self.request.query_params.get('au')
+
+		if self.request.user.is_superuser:
+			queryset = Commande.objects.all()#.order_by('-id')
+		else:
+			queryset = Commande.objects.filter(utilisateur=self.request.user.utilisateur)#all().order_by('-id')
 
 		if du is not None:
 			queryset = queryset.filter(date__gte=du, date__lte=au)
@@ -423,16 +517,16 @@ class CommandeViewset(viewsets.ModelViewSet):
 	@transaction.atomic
 	def create(self, request, *args, **kwargs):
 		data = request.data
-		labo = data.get("laboratoire")
-		laboratoire = None
-		if(labo.get("name")):
-			laboratoire, created = Laboratoire.objects.get_or_create(
-				name = labo.get("name")
-			)
-			laboratoire.save()
+		# labo = data.get("laboratoire")
+		# laboratoire = None
+		# if(labo.get("name")):
+		# 	laboratoire, created = Laboratoire.objects.get_or_create(
+		# 		name = labo.get("name")
+		# 	)
+		# 	laboratoire.save()
 		num_commande = data.get("num_commande")
 		commande = Commande(
-			user=request.user.utilisateur, num_commande=num_commande, laboratoire=laboratoire
+			utilisateur=request.user.utilisateur, num_commande=num_commande
 		)
 		commande.save()		
 		for item in data.get("items"):
@@ -481,7 +575,7 @@ class OrderViewset(viewsets.ModelViewSet):
 
 
 	def get_queryset(self):
-		queryset = Order.objects.filter(user=self.request.user.utilisateur)#all().order_by('-id')
+		queryset = Order.objects.filter(utilisateur=self.request.user.utilisateur)#all().order_by('-id')
 		du = self.request.query_params.get('du')
 		au = self.request.query_params.get('au')
 
@@ -494,10 +588,12 @@ class OrderViewset(viewsets.ModelViewSet):
 		data = request.data
 		bonLivraison:BonLivraison=BonLivraison.objects.all().latest('id')
 		order:Order=Order.objects.all().latest('id')
+		user=self.request.user
+		utilisateur=self.request.user.utilisateur
 		num_order = data.get("num_order")
 		description = data.get("description")
 		order = Order(
-			bonLivraison=bonLivraison, user=request.user.utilisateur, num_order=num_order, description=description
+			bonLivraison=bonLivraison, utilisateur=utilisateur, num_order=num_order, description=description
 		)
 		order.save()		
 		for item in data.get("items"):
