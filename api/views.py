@@ -1,4 +1,5 @@
 from .dependency import *
+# from .rsa import *
 
 
 class Pagination(PageNumberPagination):
@@ -32,7 +33,7 @@ class LaboratoireViewSet(viewsets.ModelViewSet):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = User.objects.all()
 	serializer_class = UserSerializer
@@ -245,7 +246,7 @@ class UtilisateurViewset(viewsets.ModelViewSet):
 			return Response({"status": "echec"}, 401)
 
 class DomainViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = Domain.objects.all()
 	pagination_class = Pagination
@@ -254,7 +255,7 @@ class DomainViewset(viewsets.ModelViewSet):
 	search_fields = ('name', 'category__name')
 
 class CategoryViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = Category.objects.all()
 	pagination_class = Pagination
@@ -271,7 +272,7 @@ class ProductViewset(viewsets.ModelViewSet):
 # 					mixins.RetrieveModelMixin,
 # 					mixins.CreateModelMixin,
 # 					viewsets.GenericViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated]
 	queryset = Product.objects.all()
 	pagination_class = Pagination
@@ -295,7 +296,6 @@ class ProductViewset(viewsets.ModelViewSet):
 	@transaction.atomic
 	def create(self, request, *args, **kwargs):
 		data = request.data
-		product = self.get_object()
 		cat = data.get("category")
 		category = None
 		if(cat.get("name")):
@@ -316,26 +316,17 @@ class ProductViewset(viewsets.ModelViewSet):
 		produit.save()
 		serializer = ProductSerializer(produit, many=False)
 		return Response(serializer.data, 201)
-	
 
 	@transaction.atomic
 	def partial_update(self, request, *args, **kwargs):
 		data = request.data
 		product = self.get_object()		
-		quantite = int(data.get("quantite"))
-		produit = Product(
-			quantite=quantite
-		)
-		product.quantite+=produit.quantite
+		quantite = float(data.get("quantite"))
+		product.quantite+=quantite
 		product.save()
-		print(product)
-		print(produit.quantite)
-		serializer = ProductSerializer(product, data=request.data, partial=True) # set partial=True to update a data partially
-		if serializer.is_valid():
-			serializer.save()
-			return JsonResponse(status=201, data=serializer.data)
-		return JsonResponse(status=400, data="wrong parameters")
-
+		serializer = ProductSerializer(product) # set partial=True to update a data partially
+		return Response(status=201, data=serializer.data)
+		
 	@transaction.atomic()
 	@action(methods=['PUT'], detail=True, url_path=r'augmanter', url_name=r'augmenter')
 	def augmenter(self, request, pk):
@@ -349,7 +340,7 @@ class ProductViewset(viewsets.ModelViewSet):
 		return Response(serializer, 201)
 
 class BonLivraisonViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = BonLivraison.objects.all()
 	pagination_class = Pagination
@@ -372,31 +363,25 @@ class BonLivraisonViewset(viewsets.ModelViewSet):
 
 		if du is not None:
 			queryset = queryset.filter(date__gte=du, date__lte=au)
-		return queryset
+		return queryset.order_by('-id')
 
 
 	@transaction.atomic
 	def create(self, request, *args, **kwargs):
 		data = request.data
-		num_bon = data.get("num_bon")		
-		com = data.get("commande")
-		commande = None
-		if(com.get("num_commande")):
-			commande, created = Commande.objects.get_or_create(
-				num_commande = com.get("num_commande")
-			)
-			commande.save()
+		num_bon = data.get("num_bon")
+		utilisateur = data.get("utilisateur")		
+		commande = data.get("commande")		
 		bonLivraison = BonLivraison(
-			utilisateur=request.user.utilisateur,
-			num_bon=num_bon,
-			commande=commande
+			utilisateur_id=utilisateur,
+			commande_id=commande,
+			num_bon=num_bon
 		)
 		bonLivraison.save()		
 		for item in data.get("items"):
 			product:Product = Product.objects.get(id=item.get("product"))
 			quantite = float(item.get("quantity"))
 			bonLivraisonItems = BonLivraisonItems(
-				utilisateur=request.user.utilisateur,
 				product=product, 
 				bonLivraison=bonLivraison, 
 				qte_livree=quantite
@@ -414,7 +399,7 @@ class BonLivraisonViewset(viewsets.ModelViewSet):
 
 
 class BonLivraisonItemsViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = BonLivraisonItems.objects.all()
 	pagination_class = Pagination
@@ -436,7 +421,7 @@ class BonLivraisonItemsViewset(viewsets.ModelViewSet):
 
 
 class CommandeViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = Commande.objects.all()
 	pagination_class = Pagination
@@ -465,7 +450,7 @@ class CommandeViewset(viewsets.ModelViewSet):
 		utilisateur = Utilisateur.objects.get(user=request.user)
 		print(utilisateur.departement.name)
 		commandes = Commande.objects.filter(
-			envoye=False)#, utilisateur=utilisateur.departement.id)
+			envoye=False, utilisateur=utilisateur.departement.id)
 		print(commandes)
 		for commande in commandes:
 			commande.envoye = True
@@ -479,7 +464,7 @@ class CommandeViewset(viewsets.ModelViewSet):
 		utilisateur = Utilisateur.objects.get(user=request.user)
 		print(utilisateur.decanat.id)
 		commandes = Commande.objects.filter(
-			envoyee=False)#, departement__id=utilisateur.decanat.id)
+			envoyee=False, departement__id=utilisateur.decanat.id)
 		print(commandes)
 		for commande in commandes:
 			commande.envoyee = True
@@ -493,7 +478,7 @@ class CommandeViewset(viewsets.ModelViewSet):
 		utilisateur = Utilisateur.objects.get(user=request.user)
 		print(utilisateur.decanat.id)
 		commandes = Commande.objects.filter(
-			envoyeee=False)#, decanat__id=utilisateur.decanat.id)
+			envoyeee=False, decanat__id=utilisateur.decanat.id)
 		print(commandes)
 		for commande in commandes:
 			commande.envoyeee = True
@@ -552,7 +537,7 @@ class CommandeViewset(viewsets.ModelViewSet):
 
 
 class CommandeItemViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = CommandeItem.objects.all()
 	pagination_class = Pagination
@@ -565,7 +550,7 @@ class CommandeItemViewset(viewsets.ModelViewSet):
 
 
 class OrderViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = Order.objects.all()
 	pagination_class = Pagination
@@ -613,7 +598,7 @@ class OrderViewset(viewsets.ModelViewSet):
 	
 
 class OrderItemViewset(viewsets.ModelViewSet):
-	authentication_classes = (SessionAuthentication, JWTAuthentication)
+	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated,]
 	queryset = OrderItem.objects.all()
 	pagination_class = Pagination
