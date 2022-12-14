@@ -206,7 +206,6 @@ class BonLivraison(models.Model):
 
 class BonLivraisonItems(models.Model):
 	id=models.SmallAutoField(primary_key=True)
-	utilisateur = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
 	bonLivraison = models.ForeignKey(BonLivraison,related_name='items_bons', on_delete=models.CASCADE)
 	product = models.ForeignKey(Product, on_delete=models.CASCADE)
 	qte_livree = models.FloatField(default=0)

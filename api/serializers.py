@@ -8,6 +8,8 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import check_password
 
+# from .rsa import *
+
 # class LastLoginSerializer(serializers.ModelSerializer):
 # 	class Meta:
 # 		model = LastLogin
@@ -171,14 +173,33 @@ class CategorySerializer(serializers.ModelSerializer):
 		model = Category
 		fields = ('id', 'name','produit', 'domain')
 		depth=1
+
 class DomainSerializer(serializers.HyperlinkedModelSerializer):
 	# url = serializers.HyperlinkedIdentityField(view_name="api:domain-detail")
 	category = CategorySerializer(many=True, read_only=True)
 	class Meta:
 		model = Domain
-		fields = "__all__"
-		fields = ('id','category', 'name','get_thumbnail', 'date_added')
+		# fields = "__all__"
+		fields = ('id','category', 'name','image','thumbnail','get_thumbnail', 'date_added')
 		depth=1
+
+# class DomainSerializer(serializers.ModelSerializer):
+# 	class Meta:
+# 		model = Domain
+# 		fields = ['name', 'image', 'thumbnail']
+# 		# fields = "__all__"
+
+# 	def create(self, validated_data):
+# 		validated_data['name']=cipher_pub.encrypt(validated_data['name'].encode('utf-8'))
+# 		validated_data['thumbnail']=(validated_data['thumbnail'])
+# 		validated_data['image']=(validated_data['image'])
+# 		return Domain.objects.create(**validated_data)
+
+# 	# def to_representation(self, instance):
+# 	# 	return{
+# 	# 		'name':cipher_priv.decrypt(instance.name)
+# 	# 	}
+
 
 class BonLivraisonItemsSerializer(serializers.ModelSerializer):
 	class Meta:
