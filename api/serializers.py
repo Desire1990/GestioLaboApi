@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import check_password
 
-# from .rsa import *
+from .rsa import *
 
 # class LastLoginSerializer(serializers.ModelSerializer):
 # 	class Meta:
@@ -195,10 +195,10 @@ class DomainSerializer(serializers.HyperlinkedModelSerializer):
 # 		validated_data['image']=(validated_data['image'])
 # 		return Domain.objects.create(**validated_data)
 
-# 	# def to_representation(self, instance):
-# 	# 	return{
-# 	# 		'name':cipher_priv.decrypt(instance.name)
-# 	# 	}
+	# def to_representation(self, instance):
+	# 	return{
+	# 		'name':cipher_priv.decrypt(instance.name).decode('utf-8')
+	# 	}
 
 
 class BonLivraisonItemsSerializer(serializers.ModelSerializer):
