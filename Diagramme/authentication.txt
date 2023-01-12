@@ -73,12 +73,12 @@ actor User
 User -> WebPortal: authenticated 
 WebPortal -> Backend:POST /product(send JWT token at header) request with all required fields
 WebPortal -> WebPortal: Validate Data
-Backend ->Backend:Validation data
-Backend ->Backend:Store data
-WebPortal ->Backend:GET /product(send JWT token at header)
-WebPortal ->WebPortal:Store data
-User -> WebPortal:Get list of all products
-Backend-->WebPortal:Return the Response
+Backend   -> Backend:Validation data
+Backend   -> Backend:Store data
+WebPortal -> Backend:GET /product(send JWT token at header)
+WebPortal -> WebPortal:Store data
+User      -> WebPortal:Get list of all products
+Backend   -> WebPortal:Return the Response
 @enduml
 
 
@@ -387,7 +387,7 @@ class "api.BonLivraison <Api>" as api.BonLivraison #dbd6f4 {
     bon livraison
     --
     + id (SmallAutoField)
-    ~ user (ForeignKey)
+    ~ user (ForeignKey) 
     ~ laboratoire (ForeignKey)
     ~ commande (ForeignKey)
     + num_bon (CharField)
