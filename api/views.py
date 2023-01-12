@@ -267,11 +267,6 @@ class CategoryViewset(viewsets.ModelViewSet):
 	search_fields = ['name', 'domain__id']
 
 class ProductViewset(viewsets.ModelViewSet):
-# class ProductViewset(mixins.ListModelMixin,
-# 					mixins.UpdateModelMixin,
-# 					mixins.RetrieveModelMixin,
-# 					mixins.CreateModelMixin,
-# 					viewsets.GenericViewSet):
 	authentication_classes = (JWTAuthentication, SessionAuthentication)
 	permission_classes = [IsAuthenticated]
 	queryset = Product.objects.all()
@@ -429,11 +424,10 @@ class CommandeViewset(viewsets.ModelViewSet):
 	filter_backends = (filters.SearchFilter,)
 	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
-		'utilisateur': ['exact'],
-		'date_commande': ['exact'], 'envoye': ['exact'], 'envoyee': ['exact']
+		'utilisateur': ['exact']
 	}
 
-	search_fields = ['num_commande','date_commande','laboratoire__name', 'utilisateur__username']
+	search_fields = ['num_commande','date_commande', 'utilisateur__id']
 
 	@action(methods=["GET"], detail=True, url_path=r'envoyer', url_name=r'envoyer')
 	@transaction.atomic()
@@ -453,7 +447,7 @@ class CommandeViewset(viewsets.ModelViewSet):
 			envoye=False, utilisateur=utilisateur.departement.id)
 		print(commandes)
 		for commande in commandes:
-			commande.envoye = True
+			commande.envoyee = True
 			commande.save()
 
 		return Response({"status": "commandes envoyé avec success"}, 201)
@@ -464,10 +458,10 @@ class CommandeViewset(viewsets.ModelViewSet):
 		utilisateur = Utilisateur.objects.get(user=request.user)
 		print(utilisateur.decanat.id)
 		commandes = Commande.objects.filter(
-			envoyee=False, departement__id=utilisateur.decanat.id)
+			envoyee=False, utilisateur=utilisateur.decanat.id)
 		print(commandes)
 		for commande in commandes:
-			commande.envoyee = True
+			commande.envoyeee = True
 			commande.save()
 
 		return Response({"status": "commandes envoyé avec success"}, 201)
