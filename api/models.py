@@ -197,7 +197,7 @@ class BonLivraison(models.Model):
 	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')	
 	envoye = models.BooleanField(default=False)
 	envoyee = models.BooleanField(default=False)
-	# envoyeee = models.BooleanField(default=False)
+	envoyeee = models.BooleanField(default=False)
 
 	def __str__(self):
 		return f'{self.num_bon}-{self.commande.utilisateur.user}'
