@@ -16,6 +16,7 @@ SECRET_KEY = 'django-insecure-e)ch)eyo(p%bs4785l#2znass#c9^$mrv!xmdq#=6m2g8v8+up
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+CORS_ORIGIN_ALLOW_ALL = True
 
 
 # Application definition
@@ -30,7 +31,7 @@ INSTALLED_APPS = [
 
     'corsheaders',
     'django_filters',
-    'api.apps.ApiConfig',
+    'api.apps.ApiConfig',# api
     'rest_framework',
     'rest_framework.authtoken',
     'rest_auth',
@@ -119,7 +120,7 @@ USE_L10N = True
 USE_TZ = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8082",
+    # "http://localhost:8082",
     "http://localhost:8081",
 ]
 
@@ -150,7 +151,7 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',
     ),
     'DEFAULT_PAGINATION_CLASS':'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 15,
+    'PAGE_SIZE': 15000,
 }
 
 REST_USE_JWT = True
