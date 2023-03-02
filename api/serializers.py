@@ -44,6 +44,7 @@ class GroupSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Group
 		fields = "__all__"
+		depth=2
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -206,7 +207,7 @@ class BonLivraisonItemsSerializer(serializers.ModelSerializer):
 		model = BonLivraisonItems
 		fields = "__all__"
 		# fields = ('produit','bonLivraison','qte_livree','qte_restante',)
-		depth=2
+		depth=4
 
 class BonLivraisonSerializer(serializers.ModelSerializer):
 	items_bons = BonLivraisonItemsSerializer(many=True)
@@ -214,7 +215,7 @@ class BonLivraisonSerializer(serializers.ModelSerializer):
 		model = BonLivraison
 		fields='__all__'
 		# fields = ('items_bons','user', 'laboratoire', 'date_livraison', 'num_bon')
-		depth=2
+		depth=4
 
 	def create(self, validated_data):
 		""" override create method """
@@ -244,6 +245,12 @@ class CommandeItemSerializer(serializers.ModelSerializer):
 
 class CommandeSerializer(serializers.ModelSerializer):
 	items = CommandeItemSerializer(many=True)
+
+	def to_representation(self, instance):
+		representation = super().to_representation(instance)
+		representation['utilisateur'] = UtilisateurSerializer(instance.utilisateur, many=False).data
+		representation['departement'] = DepartementSerializer(instance.departement, many=False).data
+		return representation
 	
 	class Meta:
 		model = Commande

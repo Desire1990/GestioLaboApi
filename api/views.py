@@ -1,9 +1,12 @@
 from .dependency import *
 # from .rsa import *
+import pint
+
+ureg = pint.UnitRegistry()
 
 
 class Pagination(PageNumberPagination):
-	page_size = 15
+	page_size = 15000
 	def get_paginated_response(self, data):
 		return Response(OrderedDict([
 			('next', self.get_next_link()),
@@ -131,10 +134,10 @@ class DecanatViewset(viewsets.ModelViewSet):
 		name = data.get('name')
 		decanat: Decanat = Decanat(
 			user=request.user,
-			decanat=decanat
+			name=name
 		)
-		dpe.save()
-		serializer = DecanatSerializer(dpe, many=False).data
+		decanat.save()
+		serializer = DecanatSerializer(decanat, many=False).data
 		return Response({"status": "Decanat cree avec succès"}, 201)
 
 
@@ -170,6 +173,10 @@ class UtilisateurViewset(viewsets.ModelViewSet):
 	#authentication_classes = [JWTAuthentication, SessionAuthentication]
 	#permission_classes = IsAuthenticated,
 	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+	filterset_fields = {
+		'departement': ['exact'],
+		'decanat': ['exact'],
+	}
 	search_fields = ['user__username', 'user__first_name',
 					 'user__last_name', 'departement__name', 'decanat__name']
 
@@ -219,8 +226,8 @@ class UtilisateurViewset(viewsets.ModelViewSet):
 		utilisateur.save()
 
 		send_mail(
-			subject=f"{reset} est votre code de réinitialisation de votre compte Approsco",
-			message=f"Nous avons reçu une demande de réinitialisation de votre mot de passe Approsco. \nEntrez le code de réinitialisation du mot de passe suivant: \n\n{reset}\n\nVous n'avez pas demandé ce changement?\nSi vous n'avez pas demandé de nouveau mot de passe, veuillez signaler votre Administrateur.",
+			subject=f"{reset} est votre code de réinitialisation de votre compte gestion labo",
+			message=f"Nous avons reçu une demande de réinitialisation de votre mot de passe gestion labo. \nEntrez le code de réinitialisation du mot de passe suivant: \n\n{reset}\n\nVous n'avez pas demandé ce changement?\nSi vous n'avez pas demandé de nouveau mot de passe, veuillez signaler votre Administrateur.",
 			from_email=None,
 			recipient_list=[email],
 			fail_silently=False,
@@ -252,7 +259,7 @@ class DomainViewset(viewsets.ModelViewSet):
 	pagination_class = Pagination
 	serializer_class = DomainSerializer
 	filter_backends = (filters.SearchFilter,)
-	search_fields = ('name', 'category__name')
+	search_fields = ('name', 'category__name', 'category__produit__reference')
 
 class CategoryViewset(viewsets.ModelViewSet):
 	authentication_classes = (JWTAuthentication, SessionAuthentication)
@@ -317,6 +324,13 @@ class ProductViewset(viewsets.ModelViewSet):
 		data = request.data
 		product = self.get_object()		
 		quantite = float(data.get("quantite"))
+		unite = (data.get("unite"))
+		print(unite)
+		print(product.unite)
+		# ------------------------------
+		# if product.unite == 'kg':
+			
+		# -----------------------------
 		product.quantite+=quantite
 		product.save()
 		serializer = ProductSerializer(product) # set partial=True to update a data partially
@@ -326,9 +340,8 @@ class ProductViewset(viewsets.ModelViewSet):
 	@action(methods=['PUT'], detail=True, url_path=r'augmanter', url_name=r'augmenter')
 	def augmenter(self, request, pk):
 		product:Product=Product.objects.get(id=pk)
-		quantite = 1200
-		product=Product(
-			quantite=quantite)
+		quantite = quantite
+		product=Product(quantite=quantite)
 		product.quantite+=quantite
 		product.save()
 		serializer = ProductSerializer(product, many=False).data
@@ -342,7 +355,7 @@ class BonLivraisonViewset(viewsets.ModelViewSet):
 	serializer_class = BonLivraisonSerializer
 	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
-		'commande': ['exact'],
+		'commande__departement': ['exact'],
 		'utilisateur': ['exact'],
 	}
 	search_fields = ['num_bon', 'commande__id','utilisateur__username']
@@ -354,12 +367,20 @@ class BonLivraisonViewset(viewsets.ModelViewSet):
 		if self.request.user.is_superuser:
 			queryset = BonLivraison.objects.all()#.order_by('-id')
 		else:
-			queryset = BonLivraison.objects.filter(utilisateur=self.request.user.utilisateur)#all().order_by('-id')
-
+			queryset = BonLivraison.objects.filter(commande__departement=self.request.user.utilisateur.departement)#all().order_by('-id')
+			print(self.request.user.utilisateur.departement.id)
 		if du is not None:
 			queryset = queryset.filter(date__gte=du, date__lte=au)
 		return queryset.order_by('-id')
 
+	# def get_queryset(self):
+	# 	queryset = BonLivraison.objects.all().order_by('-id')
+	# 	du = self.request.query_params.get('du')
+	# 	au = self.request.query_params.get('au')
+
+	# 	if du is not None:
+	# 		queryset = queryset.filter(date__gte=du, date__lte=au)
+	# 	return queryset
 
 	@transaction.atomic
 	def create(self, request, *args, **kwargs):
@@ -402,18 +423,22 @@ class BonLivraisonItemsViewset(viewsets.ModelViewSet):
 	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
 		'bonLivraison': ['exact'],
+		'bonLivraison__commande__departement': ['exact'],
 	}
 	search_fields = ['qte_livree', 'bonLivraison__id']
 
 	def get_queryset(self):
-		queryset = BonLivraisonItems.objects.all().order_by('-id')
 		du = self.request.query_params.get('du')
 		au = self.request.query_params.get('au')
 
+		if self.request.user.is_superuser:
+			queryset = BonLivraisonItems.objects.all()
+		else:
+			queryset = BonLivraisonItems.objects.filter(bonLivraison__commande__departement=self.request.user.utilisateur.departement)#all().order_by('-id')
+			print(self.request.user.utilisateur.departement.id)
 		if du is not None:
 			queryset = queryset.filter(date__gte=du, date__lte=au)
 		return queryset
-
 
 class CommandeViewset(viewsets.ModelViewSet):
 	authentication_classes = (JWTAuthentication, SessionAuthentication)
@@ -424,10 +449,15 @@ class CommandeViewset(viewsets.ModelViewSet):
 	filter_backends = (filters.SearchFilter,)
 	filter_backends = [DjangoFilterBackend, filters.SearchFilter]
 	filterset_fields = {
-		'utilisateur': ['exact']
+		'utilisateur': ['exact'],
+		'departement__decanat': ['exact'],
+		'departement': ['exact'], 
+		'envoye': ['exact'],
+		'envoyee': ['exact'], 
+		'envoyeee': ['exact']
 	}
 
-	search_fields = ['num_commande','date_commande', 'utilisateur__id']
+	search_fields = ['utilisateur__user__username', 'departement__name', 'departement__decanat__name']
 
 	@action(methods=["GET"], detail=True, url_path=r'envoyer', url_name=r'envoyer')
 	@transaction.atomic()
@@ -444,10 +474,24 @@ class CommandeViewset(viewsets.ModelViewSet):
 		utilisateur = Utilisateur.objects.get(user=request.user)
 		print(utilisateur.departement.name)
 		commandes = Commande.objects.filter(
-			envoye=False, utilisateur=utilisateur.departement.id)
+			envoyee=False, departement__id=utilisateur.departement.id)
 		print(commandes)
 		for commande in commandes:
 			commande.envoyee = True
+			commande.save()
+
+		return Response({"status": "commandes envoyé avec success"}, 201)
+
+	@action(methods=["GET"], detail=False, url_path=r'envoye-all', url_name=r'envoye-all')
+	@transaction.atomic()
+	def envoyell(self, request):
+		utilisateur = Utilisateur.objects.get(user=request.user)
+		print(utilisateur.decanat.id)
+		commandes = Commande.objects.filter(
+			envoye=False, departement__id=utilisateur.departement.id)
+		print(commandes)
+		for commande in commandes:
+			commande.envoye = True
 			commande.save()
 
 		return Response({"status": "commandes envoyé avec success"}, 201)
@@ -458,21 +502,7 @@ class CommandeViewset(viewsets.ModelViewSet):
 		utilisateur = Utilisateur.objects.get(user=request.user)
 		print(utilisateur.decanat.id)
 		commandes = Commande.objects.filter(
-			envoyee=False, utilisateur=utilisateur.decanat.id)
-		print(commandes)
-		for commande in commandes:
-			commande.envoyeee = True
-			commande.save()
-
-		return Response({"status": "commandes envoyé avec success"}, 201)
-
-	@action(methods=["GET"], detail=False, url_path=r'envoyeee-all', url_name=r'envoyeee-all')
-	@transaction.atomic()
-	def envoyeeeAll(self, request):
-		utilisateur = Utilisateur.objects.get(user=request.user)
-		print(utilisateur.decanat.id)
-		commandes = Commande.objects.filter(
-			envoyeee=False, decanat__id=utilisateur.decanat.id)
+			envoyeee=False, departement__decanat__id=utilisateur.decanat.id)
 		print(commandes)
 		for commande in commandes:
 			commande.envoyeee = True
@@ -481,31 +511,52 @@ class CommandeViewset(viewsets.ModelViewSet):
 		return Response({"status": "commandes envoyé avec success"}, 201)
 
 	def get_queryset(self):
+		queryset = Commande.objects.all()
 		du = self.request.query_params.get('du')
 		au = self.request.query_params.get('au')
+		user_groups = self.request.user.groups.all()
+		name = user_groups[0]
 
 		if self.request.user.is_superuser:
-			queryset = Commande.objects.all()#.order_by('-id')
+			queryset = Commande.objects.filter(envoyeee=True)
 		else:
-			queryset = Commande.objects.filter(utilisateur=self.request.user.utilisateur)#all().order_by('-id')
+			if (name.name) == "Departement":
+				print(name.name + " <=> " + self.request.user.utilisateur.departement.name)
+				queryset = Commande.objects.filter(Q(departement=self.request.user.utilisateur.departement) or Q(envoye=True))
+			elif (name.name) == 'Decanat':
+				print(name.name + " <=> " + self.request.user.utilisateur.departement.name)
+				queryset = Commande.objects.filter(Q(departement__decanat=self.request.user.utilisateur.decanat) and Q(envoyee=True))
+			
+			elif (name.name) == 'Agent Stock2':
+				print(name.name + " <=> " + self.request.user.utilisateur.departement.name)
+				queryset = Commande.objects.filter(departement=self.request.user.utilisateur.departement)
 
 		if du is not None:
 			queryset = queryset.filter(date__gte=du, date__lte=au)
-		return queryset
+		return queryset.order_by('-id')
 
+	# def get_queryset(self):
+	# 	queryset = Commande.objects.filter(departement=self.request.user.utilisateur.departement)#.order_by('-id')
+	# 	du = self.request.query_params.get('du')
+	# 	au = self.request.query_params.get('au')
+
+	# 	if du is not None:
+	# 		queryset = queryset.filter(date__gte=du, date__lte=au)
+	# 	return queryset
+		
 	@transaction.atomic
 	def create(self, request, *args, **kwargs):
 		data = request.data
-		# labo = data.get("laboratoire")
-		# laboratoire = None
-		# if(labo.get("name")):
-		# 	laboratoire, created = Laboratoire.objects.get_or_create(
-		# 		name = labo.get("name")
-		# 	)
-		# 	laboratoire.save()
+		utilisateur = Utilisateur.objects.get(user=request.user)
+		user_groups = request.user.groups.all()
+		name = user_groups[0]
 		num_commande = data.get("num_commande")
+		departement = data.get("departement")
+		# departement: Departement = Departement.objects.get(name=(data.get('departement')))
 		commande = Commande(
-			utilisateur=request.user.utilisateur, num_commande=num_commande
+			utilisateur=request.user.utilisateur,
+			departement_id=request.user.utilisateur.departement.id,
+			num_commande=num_commande
 		)
 		commande.save()		
 		for item in data.get("items"):
@@ -524,6 +575,15 @@ class CommandeViewset(viewsets.ModelViewSet):
 			product.quantite-=quantite
 			product.save();
 			serializer = CommandeItemSerializer(CommandeItem, many=False)
+
+		if (name.name) == "Agent Stock2":
+			commande.envoye = True
+		elif (name.name) == "Departement":
+			commande.envoye = True
+			commande.envoyee = True
+		else:
+			commande.envoye = False
+
 		commande.save()
 		serializer = CommandeSerializer(commande, many=False)
 		return Response(serializer.data, 201)
@@ -566,7 +626,6 @@ class OrderViewset(viewsets.ModelViewSet):
 	def create(self, request, *args, **kwargs):
 		data = request.data
 		bonLivraison:BonLivraison=BonLivraison.objects.all().latest('id')
-		order:Order=Order.objects.all().latest('id')
 		user=self.request.user
 		utilisateur=self.request.user.utilisateur
 		num_order = data.get("num_order")
@@ -585,7 +644,6 @@ class OrderViewset(viewsets.ModelViewSet):
 			# product.quantite-=quantite
 			product.save();
 			serializer = OrderItemSerializer(orderItem, many=False)
-		order.save()
 		serializer = OrderSerializer(order, many=False)
 		return Response(serializer.data, 201)
 

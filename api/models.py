@@ -158,7 +158,8 @@ class Product(models.Model):
 class Commande(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	utilisateur = models.ForeignKey("Utilisateur", on_delete=models.CASCADE)
-	# laboratoire = models.ForeignKey(Laboratoire, on_delete=models.CASCADE)
+	departement = models.ForeignKey('Departement', on_delete=models.CASCADE)
+	# decanat = models.ForeignKey('Decanat', on_delete=models.CASCADE)
 	num_commande = models.CharField(max_length=50)
 	date_commande = models.DateTimeField(auto_now_add=True)
 	date_livraison = models.DateTimeField(auto_now_add=True)
@@ -168,7 +169,7 @@ class Commande(models.Model):
 	envoyeee = models.BooleanField(default=False)#decanat
 	
 	def __str__(self):
-		return f'{self.num_commande}-{self.utilisateur.user.username}'
+		return f'{self.num_commande}-{self.utilisateur.user.username}-{self.departement.name}'
 
 
 	class Meta:
@@ -195,9 +196,9 @@ class BonLivraison(models.Model):
 	date_commande = models.DateTimeField(auto_now_add=True)
 	date_livraison = models.DateTimeField(auto_now_add=True)
 	status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')	
-	envoye = models.BooleanField(default=False)
-	envoyee = models.BooleanField(default=False)
-	envoyeee = models.BooleanField(default=False)
+	# envoye = models.BooleanField(default=False)
+	# envoyee = models.BooleanField(default=False)
+	# envoyeee = models.BooleanField(default=False)
 
 	def __str__(self):
 		return f'{self.num_bon}-{self.commande.utilisateur.user}'
@@ -240,7 +241,7 @@ class Order(models.Model):
 class OrderItem(models.Model):
 	id=models.SmallAutoField(primary_key=True)
 	order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
-	product = models.ForeignKey(Product, related_name='items', on_delete=models.CASCADE)
+	product = models.ForeignKey(Product, on_delete=models.CASCADE)
 	quantity = models.FloatField(default=1)
 	unite = models.CharField(choices=UNITE_CHOICE, max_length=200, null=True)
 
