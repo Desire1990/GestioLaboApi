@@ -37,8 +37,8 @@ INSTALLED_APPS = [
     'rest_auth',
     'django_rest_passwordreset',
     'django_extensions',
-    'models2puml',
-    'puml_generator',
+    # 'models2puml',
+    # 'puml_generator',
 
 ]
 MIDDLEWARE = [
@@ -121,7 +121,7 @@ USE_TZ = True
 
 CORS_ALLOWED_ORIGINS = [
     # "http://localhost:8082",
-    "http://localhost:8081",
+    "http://localhost:8080",
 ]
 
 # Static files (CSS, JavaScript, Images)

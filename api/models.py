@@ -16,8 +16,8 @@ from django.core.files import File
 from PIL import Image
 from django.db import transaction
 
-import barcode                      # additional imports for bar code
-from barcode.writer import ImageWriter
+# import barcode                      # additional imports for bar code
+# from barcode.writer import ImageWriter
 from io import BytesIO
 from django.core.files import File
 
